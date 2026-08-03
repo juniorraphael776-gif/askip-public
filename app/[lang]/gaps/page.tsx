@@ -20,13 +20,29 @@
  */
 import { notFound } from 'next/navigation';
 import { isLang, t, type Lang } from '@/lib/i18n';
-import { getAllCountryQuality, getFreshness, getGaps, getIndicators, type GapCell, type GapState } from '@/lib/queries';
-import { Empty, MethodBanner, Note, Section, Stat, num } from '@/app/ui';
+import { getAllCountryQuality, getFreshness, getGaps, getIndicators, type GapCell, type GapSection, type GapState } from '@/lib/queries';
+import { Empty, MethodBanner, Note, Section, num } from '@/app/ui';
 import { GAP_STATE, GOLD, INK, LINE, MUTED } from '@/lib/theme';
 
 export const revalidate = 900;
 
 const ORDER: GapState[] = ['couvert', 'aucune_donnee_recente', 'periode_inconnue', 'aucune_donnee'];
+const SECTIONS: GapSection[] = ['maladies', 'etats_nutritionnels', 'indicateurs'];
+const SECTION_LABEL: Record<GapSection, { fr: string; en: string }> = {
+  maladies:            { fr: 'Maladies',              en: 'Diseases' },
+  etats_nutritionnels: { fr: 'États nutritionnels',   en: 'Nutritional status' },
+  indicateurs:         { fr: 'Indicateurs suivis',    en: 'Tracked indicators' },
+};
+const SECTION_HINT: Record<GapSection, { fr: string; en: string }> = {
+  maladies:            { fr: 'une condition qu’une personne a', en: 'a condition a person has' },
+  etats_nutritionnels: { fr: 'un état mesuré par des indices anthropométriques', en: 'a state measured by anthropometric indices' },
+  indicateurs:         { fr: 'une mesure sur une population, pas sur un individu', en: 'a measure over a population, not an individual' },
+};
+const SECTION_COL: Record<GapSection, { fr: string; en: string }> = {
+  maladies:            { fr: 'Maladie',   en: 'Disease' },
+  etats_nutritionnels: { fr: 'État',      en: 'Status' },
+  indicateurs:         { fr: 'Indicateur', en: 'Indicator' },
+};
 const LABEL: Record<GapState, { fr: string; en: string }> = {
   couvert:               { fr: 'Couvert',               en: 'Covered' },
   aucune_donnee_recente: { fr: 'Aucune donnée récente', en: 'No recent data' },
@@ -55,11 +71,6 @@ export default async function Gaps({ params }: { params: Promise<{ lang: string 
 
   const countries = [...new Map(cells.map((c) => [c.country_iso, c])).values()]
     .sort((a, b) => (L === 'fr' ? a.country_fr.localeCompare(b.country_fr) : a.country_en.localeCompare(b.country_en)));
-  const diseases = [...new Map(cells.map((c) => [c.disease_canonical, c])).values()]
-    .sort((a, b) => a.disease_canonical.localeCompare(b.disease_canonical));
-  const at = new Map(cells.map((c) => [`${c.country_iso}|${c.disease_canonical}`, c]));
-  const tally = ORDER.map((s) => ({ state: s, n: cells.filter((c) => c.state === s).length }));
-  const total = cells.length;
 
   return (
     <>
@@ -67,8 +78,8 @@ export default async function Gaps({ params }: { params: Promise<{ lang: string 
         <h1 className="text-2xl font-bold" style={{ color: INK }}>{t(L, 'nav_gaps')}</h1>
         <p className="mt-1 text-sm" style={{ color: MUTED }}>
           {L === 'fr'
-            ? `Mesuré contre un périmètre déclaré de ${countries.length} pays × ${diseases.length} maladies, curé à la main.`
-            : `Measured against a declared scope of ${countries.length} countries × ${diseases.length} diseases, curated by hand.`}
+            ? `Mesuré contre un périmètre déclaré de ${countries.length} pays, curé à la main, en trois sections qui ne s’additionnent pas.`
+            : `Measured against a declared scope of ${countries.length} countries, curated by hand, in three sections that do not add up.`}
         </p>
       </header>
 
@@ -90,53 +101,73 @@ export default async function Gaps({ params }: { params: Promise<{ lang: string 
       {/* ---------- Onglet 1 : COUVERTURE ---------- */}
       <Section title={L === 'fr' ? '1. Couverture' : '1. Coverage'}
                hint={L === 'fr' ? 'mesurable aujourd’hui — des comptes d’observations, sans qualification' : 'measurable today — observation counts, unqualified'}>
-        <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-          {tally.map(({ state, n }) => (
-            <Stat key={state} label={LABEL[state][L]} value={`${n}`} hint={`${Math.round((n / total) * 100)} % · ${EXPLAIN[state][L]}`} />
-          ))}
-        </div>
+        {SECTIONS.map((sec) => {
+          const rows = cells.filter((c) => c.section === sec);
+          if (!rows.length) return null;
+          const topics = [...new Map(rows.map((c) => [c.disease_canonical, c])).values()]
+            .sort((a, b) => a.disease_canonical.localeCompare(b.disease_canonical));
+          const idx = new Map(rows.map((c) => [`${c.country_iso}|${c.disease_canonical}`, c]));
+          const per = ORDER.map((s) => ({ s, n: rows.filter((c) => c.state === s).length }));
 
-        <div className="overflow-x-auto rounded-lg" style={{ border: `1px solid ${LINE}`, background: '#fff' }}>
-          <table className="w-full border-collapse text-[12px]">
-            <thead>
-              <tr>
-                <th className="sticky left-0 bg-white px-3 py-2 text-left" style={{ borderBottom: `1px solid ${LINE}` }}>
-                  {L === 'fr' ? 'Maladie' : 'Disease'}
-                </th>
-                {countries.map((c) => (
-                  <th key={c.country_iso} className="px-1 py-2 text-center font-medium" style={{ borderBottom: `1px solid ${LINE}`, color: MUTED }}>
-                    {c.country_iso}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {diseases.map((d) => (
-                <tr key={d.disease_canonical}>
-                  <td className="sticky left-0 bg-white px-3 py-1.5" style={{ borderBottom: `1px solid ${LINE}` }}>
-                    {L === 'fr' ? d.disease_canonical : d.disease_en}
-                  </td>
-                  {countries.map((c) => {
-                    const cell = at.get(`${c.country_iso}|${d.disease_canonical}`);
-                    const st = (cell?.state ?? 'aucune_donnee') as GapState;
-                    const sty = GAP_STATE[st]!;
-                    const title = `${L === 'fr' ? c.country_fr : c.country_en} · ${L === 'fr' ? d.disease_canonical : d.disease_en}\n${LABEL[st][L]} — ${EXPLAIN[st][L]}\n${num(cell?.observations ?? 0, L)} ${t(L, 'observations')}`;
-                    return (
-                      <td key={c.country_iso} className="p-[3px] text-center" style={{ borderBottom: `1px solid ${LINE}` }}>
-                        <a href={`/${L}/evidence?country=${encodeURIComponent(c.country_fr)}&disease=${encodeURIComponent(d.disease_canonical)}`}
-                           title={title}
-                           className="block rounded py-1 text-[10px] font-semibold"
-                           style={{ background: sty.bg, color: sty.fg }}>
-                          {cell?.observations ? num(cell.observations, L) : '·'}
-                        </a>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+          return (
+            <div key={sec} className="mb-8">
+              <h3 className="mb-1 text-[13px] font-semibold uppercase tracking-wide" style={{ color: INK }}>
+                {SECTION_LABEL[sec][L]}
+              </h3>
+              <p className="mb-2 text-[11px]" style={{ color: MUTED }}>{SECTION_HINT[sec][L]}</p>
+
+              {/* Total BORNÉ à cette section. Il n'existe aucun total transversal :
+                  additionner une condition individuelle et une mesure de population
+                  produirait un nombre qui ne désigne rien. */}
+              <p className="mb-2 text-[11px]" style={{ color: MUTED }}>
+                {per.map(({ s, n }) => `${n} ${LABEL[s][L].toLowerCase()}`).join(' · ')}
+                {' · '}{rows.length} {L === 'fr' ? 'cellules dans cette section' : 'cells in this section'}
+              </p>
+
+              <div className="overflow-x-auto rounded-lg" style={{ border: `1px solid ${LINE}`, background: '#fff' }}>
+                <table className="w-full border-collapse text-[12px]">
+                  <thead>
+                    <tr>
+                      <th className="sticky left-0 bg-white px-3 py-2 text-left" style={{ borderBottom: `1px solid ${LINE}` }}>
+                        {SECTION_COL[sec][L]}
+                      </th>
+                      {countries.map((c) => (
+                        <th key={c.country_iso} className="px-1 py-2 text-center font-medium"
+                            style={{ borderBottom: `1px solid ${LINE}`, color: MUTED }}>{c.country_iso}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {topics.map((d) => (
+                      <tr key={d.disease_canonical}>
+                        <td className="sticky left-0 bg-white px-3 py-1.5" style={{ borderBottom: `1px solid ${LINE}` }}>
+                          {L === 'fr' ? d.disease_canonical : d.disease_en}
+                          {/* unité portée par l'en-tête de ligne, quand le sujet en appelle une */}
+                          {d.unit ? <span className="ml-1 text-[10px]" style={{ color: MUTED }}>({d.unit})</span> : null}
+                        </td>
+                        {countries.map((c) => {
+                          const cell = idx.get(`${c.country_iso}|${d.disease_canonical}`);
+                          const st = (cell?.state ?? 'aucune_donnee') as GapState;
+                          const sty = GAP_STATE[st]!;
+                          const title = `${L === 'fr' ? c.country_fr : c.country_en} · ${L === 'fr' ? d.disease_canonical : d.disease_en}\n${LABEL[st][L]} — ${EXPLAIN[st][L]}\n${num(cell?.observations ?? 0, L)} ${t(L, 'observations')}`;
+                          return (
+                            <td key={c.country_iso} className="p-[3px] text-center" style={{ borderBottom: `1px solid ${LINE}` }}>
+                              <a href={`/${L}/evidence?country=${encodeURIComponent(c.country_fr)}&topic=${encodeURIComponent(d.disease_canonical)}`}
+                                 title={title} className="block rounded py-1 text-[10px] font-semibold"
+                                 style={{ background: sty.bg, color: sty.fg }}>
+                                {cell?.observations ? num(cell.observations, L) : '·'}
+                              </a>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          );
+        })}
 
         <div className="mt-3 flex flex-wrap gap-3 text-[11px]">
           {ORDER.map((s) => (
@@ -149,8 +180,8 @@ export default async function Gaps({ params }: { params: Promise<{ lang: string 
 
         <Note>
           {L === 'fr'
-            ? 'Chaque cellule mène aux evidences correspondantes : une cellule vide ouvre une recherche qui montre qu’il n’y a effectivement rien. Le périmètre est téléchargeable pour être contesté.'
-            : 'Each cell links to the underlying evidence: an empty cell opens a search showing there is indeed nothing. The scope can be downloaded and challenged.'}
+            ? 'Les trois sections ne s’additionnent pas : une maladie est une condition qu’une personne a, un indicateur une mesure sur une population. Aucun total transversal n’est proposé — la recherche et les filtres, eux, traversent tout.'
+            : 'The three sections do not add up: a disease is a condition a person has, an indicator is a measure over a population. No cross-section total is offered — search and filters, however, span everything.'}
         </Note>
       </Section>
 

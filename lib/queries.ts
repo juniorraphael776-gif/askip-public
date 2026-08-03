@@ -73,9 +73,12 @@ export const getGridCountries = () =>
 
 export type GapState = 'couvert' | 'aucune_donnee_recente' | 'periode_inconnue' | 'aucune_donnee';
 
+export type GapSection = 'maladies' | 'etats_nutritionnels' | 'indicateurs';
+
 export interface GapCell {
-  grid_version: string; country_iso: string; country_fr: string; country_en: string;
-  disease_canonical: string; disease_en: string; rationale: string;
+  grid_version: string; section: GapSection;
+  country_iso: string; country_fr: string; country_en: string;
+  disease_canonical: string; disease_en: string; unit: string | null; rationale: string;
   observations: number; years: number[] | null; state: GapState;
 }
 
