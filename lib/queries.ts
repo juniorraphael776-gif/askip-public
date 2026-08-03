@@ -66,3 +66,35 @@ export const getGridCountries = () =>
     for (const r of rows) if (!seen.has(r.country_iso)) seen.set(r.country_iso, { iso: r.country_iso, fr: r.country_fr, en: r.country_en });
     return [...seen.values()].sort((a, b) => a.fr.localeCompare(b.fr));
   });
+
+/* ------------------------------------------------------------------ */
+/* Knowledge Gaps                                                       */
+/* ------------------------------------------------------------------ */
+
+export type GapState = 'couvert' | 'aucune_donnee_recente' | 'periode_inconnue' | 'aucune_donnee';
+
+export interface GapCell {
+  grid_version: string; country_iso: string; country_fr: string; country_en: string;
+  disease_canonical: string; disease_en: string; rationale: string;
+  observations: number; years: number[] | null; state: GapState;
+}
+
+export interface Freshness {
+  name: string; item_count: number; unit: string; generated_at: string;
+  observations: number | null; is_stale: boolean;
+}
+
+export const getGaps = () =>
+  safe<GapCell[]>(() => db.from('coverage_gaps').select('*').eq('grid_version', 'v1'));
+
+export const getIndicators = () =>
+  safe<{ indicator: string; label_fr: string; label_en: string; status: string; note: string }[]>(() =>
+    db.from('scope_indicators').select('*'));
+
+/** Date de la DONNÉE, pas du rendu : la vue matérialisée ne suit pas le corpus toute seule. */
+export const getFreshness = () =>
+  safe<Freshness[]>(() => db.from('data_freshness').select('*').limit(1)).then((r) => r?.[0] ?? null);
+
+/** Qualité par pays, pour l'onglet Qualité. */
+export const getAllCountryQuality = () =>
+  safe<CountryQuality[]>(() => db.from('country_quality').select('*').order('observations', { ascending: false }));
