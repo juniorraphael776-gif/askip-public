@@ -101,3 +101,47 @@ export const getFreshness = () =>
 /** Qualité par pays, pour l'onglet Qualité. */
 export const getAllCountryQuality = () =>
   safe<CountryQuality[]>(() => db.from('country_quality').select('*').order('observations', { ascending: false }));
+
+/* ------------------------------------------------------------------ */
+/* Disease Explorer + Researchers                                       */
+/* ------------------------------------------------------------------ */
+
+export interface SearchRow {
+  evidence_id: string; claim: string; numeric_value: number | null; numeric_unit: string | null;
+  temporal_context: string | null; language: string; evidence_type: string;
+  topics: string[]; countries: string[]; sections: string[];
+  origin: string | null; source: string | null; doi: string | null; pmid: string | null;
+  publication_title: string | null; journal: string | null; publication_year: number | null;
+  total_count: number;
+}
+
+export const searchEvidence = (p: {
+  q?: string; topic?: string; country?: string; language?: string; section?: string;
+  limit?: number; offset?: number;
+}) =>
+  safe<SearchRow[]>(() => db.rpc('public_api_search_evidence', {
+    p_q: p.q || null, p_topic: p.topic || null, p_country: p.country || null,
+    p_language: p.language || null, p_section: p.section || null,
+    p_limit: p.limit ?? 25, p_offset: p.offset ?? 0,
+  }));
+
+export const getSearchFacets = () =>
+  safe<{ section: string; topic: string; evidences: number; countries: number }[]>(() =>
+    db.from('search_facets').select('*').order('evidences', { ascending: false }));
+
+export interface Researcher {
+  id: string; full_name: string; country: string | null; city: string | null;
+  domain: string | null; orcid: string; verified_status: string | null; publications: number;
+}
+
+export const getResearchers = () =>
+  safe<Researcher[]>(() => db.from('researcher').select('*').order('publications', { ascending: false }));
+
+export const getResearcherPublications = (researcherId: string) =>
+  safe<{ publication_id: string; title: string; journal: string | null; publication_year: number | null; doi: string | null; pmid: string | null; external_source: string | null }[]>(() =>
+    db.from('researcher_publications').select('*').eq('researcher_id', researcherId).order('publication_year', { ascending: false }));
+
+/** Agrégat NON NOMINATIF : d'où vient la production documentée, sans nommer personne. */
+export const getEvidenceOrigin = () =>
+  safe<{ disease: string; researcher_country: string; evidences: number }[]>(() =>
+    db.from('evidence_origin_by_country').select('*').order('evidences', { ascending: false }).limit(400));

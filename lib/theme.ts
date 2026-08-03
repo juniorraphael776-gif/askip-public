@@ -20,3 +20,10 @@ export const GAP_STATE: Record<string, { bg: string; fg: string }> = {
   periode_inconnue:      { bg: '#8C8577', fg: '#FFFFFF' },
   aucune_donnee:         { bg: '#F0EDE5', fg: '#5B6660' },
 };
+
+/** Teintes de section — distinguent les registres sans jamais suggérer qu'ils s'additionnent. */
+export const SECTION_TINT: Record<string, string> = {
+  maladies:            '#EAF1EE',
+  etats_nutritionnels: '#F5EFE2',
+  indicateurs:         '#ECEFF3',
+};
