@@ -20,7 +20,7 @@
  */
 import { notFound } from 'next/navigation';
 import { isLang, t, type Lang } from '@/lib/i18n';
-import { getAllCountryQuality, getFreshness, getGaps, getIndicators, getOverview, type GapCell, type GapSection, type GapState } from '@/lib/queries';
+import { getAllCountryQuality, getCoverageReach, getFreshness, getGaps, getIndicators, getOverview, type GapCell, type GapSection, type GapState } from '@/lib/queries';
 import { Empty, KeyFact, MethodBanner, Note, Section, num } from '@/app/ui';
 import { GAP_STATE, GOLD, INK, LINE, MUTED } from '@/lib/theme';
 
@@ -65,6 +65,7 @@ export default async function Gaps({ params }: { params: Promise<{ lang: string 
   const [cells, indicators, freshness, quality, overview] = await Promise.all([
     getGaps(), getIndicators(), getFreshness(), getAllCountryQuality(), getOverview(),
   ]);
+  const reach = await getCoverageReach();
 
   if (!cells) return <Empty>migrations/020 et 021 non appliquées.</Empty>;
   if (cells.length === 0) return <Empty>La grille de référence est vide : appliquer migrations/021_scope_grid_v1.sql.</Empty>;
@@ -85,11 +86,11 @@ export default async function Gaps({ params }: { params: Promise<{ lang: string 
 
       {/* EN TÊTE, avant la grille : une cellule vide peut l'être parce que la donnée
           existe sans localisation exploitable. Le lecteur doit le savoir d'abord. */}
-      {overview && freshness?.observations ? (
+      {reach ? (
         <KeyFact
           title={t(L, 'unmapped_title')}
-          value={`${num(overview.observations - freshness.observations, L)} ${t(L, 'of')} ${num(overview.observations, L)}`}
-          body={`${Math.round(((overview.observations - freshness.observations) / Math.max(1, overview.observations)) * 100)} % ${t(L, 'unmapped_body')}`}
+          value={`${num(reach.observations_unlocated, L)} ${t(L, 'of')} ${num(reach.observations_total, L)}`}
+          body={`${Math.round((reach.observations_unlocated / Math.max(1, reach.observations_total)) * 100)} % ${t(L, 'unmapped_body')}`}
         />
       ) : null}
 

@@ -8,7 +8,7 @@
  */
 import { notFound } from 'next/navigation';
 import { isLang, t, type Lang } from '@/lib/i18n';
-import { getCountryTotals, getDiseaseTotals, getFreshness, getOverview, getTimeline } from '@/lib/queries';
+import { getCountryTotals, getDiseaseTotals, getCoverageReach, getFreshness, getOverview, getTimeline } from '@/lib/queries';
 import { CountBar, Empty, KeyFact, MethodBanner, Note, Section, Stat, Tier, YearBars, num } from '@/app/ui';
 import { GOLD, INK, LINE, MUTED } from '@/lib/theme';
 
@@ -22,6 +22,7 @@ export default async function Overview({ params }: { params: Promise<{ lang: str
   const [o, countries, diseases, timeline, freshness] = await Promise.all([
     getOverview(), getCountryTotals(12), getDiseaseTotals(20), getTimeline(), getFreshness(),
   ]);
+  const reach = await getCoverageReach();
 
   if (!o) {
     return (
@@ -48,11 +49,11 @@ export default async function Overview({ params }: { params: Promise<{ lang: str
 
       {/* Fait structurant, en évidence et non en note : les observations sans pays
           sont invisibles dans TOUTE vue géographique, grille des manques comprise. */}
-      {freshness?.observations ? (
+      {reach ? (
         <KeyFact
           title={t(L, 'unmapped_title')}
-          value={`${num(o.observations - freshness.observations, L)} ${t(L, 'of')} ${num(o.observations, L)}`}
-          body={`${Math.round(((o.observations - freshness.observations) / Math.max(1, o.observations)) * 100)} % ${t(L, 'unmapped_body')}`}
+          value={`${num(reach.observations_unlocated, L)} ${t(L, 'of')} ${num(reach.observations_total, L)}`}
+          body={`${Math.round((reach.observations_unlocated / Math.max(1, reach.observations_total)) * 100)} % ${t(L, 'unmapped_body')}`}
         />
       ) : null}
 

@@ -81,6 +81,7 @@ export interface GapCell {
   disease_canonical: string; disease_en: string; rationale: string;
   /** Portée par l'ENTITÉ (unit_hint), jamais recopiée dans la grille. */
   unit_hint: string | null;
+  observations_inherited: number;
   observations: number; years: number[] | null; state: GapState;
 }
 
@@ -95,6 +96,15 @@ export const getGaps = () =>
 export const getIndicators = () =>
   safe<{ indicator: string; label_fr: string; label_en: string; status: string; note: string }[]>(() =>
     db.from('scope_indicators').select('*'));
+
+export interface CoverageReach {
+  observations_total: number; observations_located: number;
+  observations_unlocated: number; observations_dated: number;
+}
+
+/** Portée réelle : le compte des observations hors carte vient de la BASE. */
+export const getCoverageReach = () =>
+  safe<CoverageReach[]>(() => db.from('coverage_reach').select('*').limit(1)).then((r) => r?.[0] ?? null);
 
 /** Date de la DONNÉE, pas du rendu : la vue matérialisée ne suit pas le corpus toute seule. */
 export const getFreshness = () =>
@@ -121,7 +131,7 @@ export const searchEvidence = (p: {
   q?: string; topic?: string; country?: string; language?: string; section?: string;
   limit?: number; offset?: number;
 }) =>
-  safe<SearchRow[]>(() => db.rpc('public_api_search_evidence', {
+  safe<SearchRow[]>(() => db.rpc('search_evidence', {
     p_q: p.q || null, p_topic: p.topic || null, p_country: p.country || null,
     p_language: p.language || null, p_section: p.section || null,
     p_limit: p.limit ?? 25, p_offset: p.offset ?? 0,
