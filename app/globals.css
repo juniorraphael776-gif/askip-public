@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+/**
+ * ASKIP public — socle.
+ * Thème CLAIR : ce portail est lu, imprimé et projeté par des décideurs.
+ * Le sombre de Tower est un choix d'outil de supervision.
+ */
+:root {
+  --paper: #FBFAF7;
+  --ink: #061C15;
+  --gold: #B8860B;
+  --line: #E4E0D6;
+}
+
+html { color-scheme: light; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { background: rgba(184, 134, 11, 0.25); }
+
+@media print {
+  nav, .no-print { display: none; }
+  body { background: #fff; }
+}

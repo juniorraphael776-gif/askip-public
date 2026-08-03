@@ -1,0 +1,93 @@
+/**
+ * ASKIP public — primitives d'affichage.
+ *
+ * CE QUI N'EXISTE PAS ICI, ET N'EXISTERA PAS :
+ *   - carte choroplèthe colorée par une valeur  (serait lue comme une carte épidémiologique)
+ *   - courbe de tendance                        (suggérerait une évolution de la maladie)
+ *   - classement « pays les plus touchés »      (le corpus mesure la documentation, pas la charge)
+ *
+ * Ce qui existe : des comptes, des listes, des liens vers les sources. La
+ * protection contre la surinterprétation n'est pas la note de bas de page,
+ * c'est le choix des formes.
+ */
+import type { ReactNode } from 'react';
+import { CARD, GOLD, GREEN, INK, LINE, MUTED } from '@/lib/theme';
+
+export const num = (v: number | null | undefined, lang: 'fr' | 'en' = 'fr'): string =>
+  v === null || v === undefined ? '—' : v.toLocaleString(lang === 'fr' ? 'fr-FR' : 'en-US').replace(/ | /g, ' ');
+
+export function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
+  return (
+    <section className="mb-12">
+      <h2 className="mb-1 text-lg font-semibold" style={{ color: INK }}>{title}</h2>
+      {hint ? <p className="mb-4 text-[13px]" style={{ color: MUTED }}>{hint}</p> : <div className="mb-4" />}
+      {children}
+    </section>
+  );
+}
+
+export function Stat({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
+  return (
+    <div className="rounded-lg p-4" style={{ background: CARD, border: `1px solid ${LINE}` }}>
+      <div className="text-[11px] uppercase tracking-wide" style={{ color: MUTED }}>{label}</div>
+      <div className="mt-1 text-2xl font-bold tabular-nums" style={{ color: INK }}>{value}</div>
+      {hint ? <div className="mt-0.5 text-[11px]" style={{ color: MUTED }}>{hint}</div> : null}
+    </div>
+  );
+}
+
+/** Barre de COMPTE. L'axe dit ce qu'il mesure — jamais « charge » ni « prévalence ». */
+export function CountBar({ label, value, max, href, lang = 'fr' }: { label: string; value: number; max: number; href?: string; lang?: 'fr' | 'en' }) {
+  const pct = max > 0 ? Math.round((value / max) * 100) : 0;
+  const inner = (
+    <>
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      <span className="h-2 w-28 shrink-0 overflow-hidden rounded-full sm:w-48" style={{ background: '#EFECE3' }}>
+        <i className="block h-full rounded-full" style={{ width: `${pct}%`, background: GREEN }} />
+      </span>
+      <span className="w-20 shrink-0 text-right tabular-nums" style={{ color: MUTED }}>{num(value, lang)}</span>
+    </>
+  );
+  return href
+    ? <a href={href} className="flex items-center gap-3 py-1.5 text-sm hover:underline" style={{ color: INK }}>{inner}</a>
+    : <div className="flex items-center gap-3 py-1.5 text-sm">{inner}</div>;
+}
+
+/** Histogramme de comptes par année. Ce n'est pas une courbe : des barres discrètes. */
+export function YearBars({ data, undated, undatedLabel, lang }: { data: { year: number; observations: number }[]; undated: number; undatedLabel: string; lang: 'fr' | 'en' }) {
+  const max = Math.max(1, ...data.map((d) => d.observations));
+  return (
+    <div>
+      <div className="flex items-end gap-[3px] overflow-x-auto pb-1" style={{ height: 120 }}>
+        {data.map((d) => (
+          <div key={d.year} className="flex w-6 shrink-0 flex-col items-center justify-end gap-1" title={`${d.year} : ${num(d.observations, lang)}`}>
+            <i className="w-full rounded-t" style={{ height: `${Math.max(2, (d.observations / max) * 96)}px`, background: GREEN }} />
+            <span className="text-[9px] tabular-nums" style={{ color: MUTED }}>{String(d.year).slice(2)}</span>
+          </div>
+        ))}
+      </div>
+      {/* La part non datée est affichée À CÔTÉ, jamais fondue dans l'histogramme :
+          69 % des observations n'ont pas d'année, les inclure fausserait la lecture. */}
+      <div className="mt-3 rounded-lg px-3 py-2 text-[13px]" style={{ background: '#F5F2EA', border: `1px solid ${LINE}`, color: MUTED }}>
+        <strong style={{ color: GOLD }}>{num(undated, lang)}</strong> {undatedLabel}
+      </div>
+    </div>
+  );
+}
+
+export function Note({ children }: { children: ReactNode }) {
+  return <p className="mt-3 text-[12px] leading-relaxed" style={{ color: MUTED }}>{children}</p>;
+}
+
+/** Bandeau méthodologique — permanent, pas repliable. */
+export function MethodBanner({ text }: { text: string }) {
+  return (
+    <aside className="mb-10 rounded-lg p-4 text-[13px] leading-relaxed" style={{ background: '#F5F2EA', border: `1px solid ${LINE}`, color: INK }}>
+      {text}
+    </aside>
+  );
+}
+
+export function Empty({ children }: { children: ReactNode }) {
+  return <p className="text-sm" style={{ color: MUTED }}>{children}</p>;
+}
