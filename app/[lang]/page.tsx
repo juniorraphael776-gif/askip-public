@@ -8,8 +8,8 @@
  */
 import { notFound } from 'next/navigation';
 import { isLang, t, type Lang } from '@/lib/i18n';
-import { getCountryTotals, getDiseaseTotals, getOverview, getTimeline } from '@/lib/queries';
-import { CountBar, Empty, MethodBanner, Note, Section, Stat, YearBars, num } from '@/app/ui';
+import { getCountryTotals, getDiseaseTotals, getFreshness, getOverview, getTimeline } from '@/lib/queries';
+import { CountBar, Empty, KeyFact, MethodBanner, Note, Section, Stat, Tier, YearBars, num } from '@/app/ui';
 import { GOLD, INK, LINE, MUTED } from '@/lib/theme';
 
 export const revalidate = 900;   // portail public : contenu identique pour tous
@@ -19,8 +19,8 @@ export default async function Overview({ params }: { params: Promise<{ lang: str
   if (!isLang(lang)) notFound();
   const L = lang as Lang;
 
-  const [o, countries, diseases, timeline] = await Promise.all([
-    getOverview(), getCountryTotals(12), getDiseaseTotals(20), getTimeline(),
+  const [o, countries, diseases, timeline, freshness] = await Promise.all([
+    getOverview(), getCountryTotals(12), getDiseaseTotals(20), getTimeline(), getFreshness(),
   ]);
 
   if (!o) {
@@ -46,6 +46,16 @@ export default async function Overview({ params }: { params: Promise<{ lang: str
 
       <MethodBanner text={t(L, 'method_note')} />
 
+      {/* Fait structurant, en évidence et non en note : les observations sans pays
+          sont invisibles dans TOUTE vue géographique, grille des manques comprise. */}
+      {freshness?.observations ? (
+        <KeyFact
+          title={t(L, 'unmapped_title')}
+          value={`${num(o.observations - freshness.observations, L)} ${t(L, 'of')} ${num(o.observations, L)}`}
+          body={`${Math.round(((o.observations - freshness.observations) / Math.max(1, o.observations)) * 100)} % ${t(L, 'unmapped_body')}`}
+        />
+      ) : null}
+
       <section className="mb-12 grid grid-cols-2 gap-3 md:grid-cols-3">
         <Stat label={t(L, 'kpi_evidences')} value={num(o.evidences_validated, L)} hint={`${num(o.evidences_total, L)} extraites`} />
         <Stat label={t(L, 'kpi_observations')} value={num(o.observations, L)} hint={`${num(o.observations_dated, L)} ${t(L, 'dated')}`} />
@@ -55,7 +65,7 @@ export default async function Overview({ params }: { params: Promise<{ lang: str
         <Stat label={t(L, 'kpi_researchers')} value={num(o.researchers, L)} />
       </section>
 
-      <Section title={t(L, 'by_country')} hint={t(L, 'activity_axis')}>
+      <Section title={t(L, 'by_country')} hint={`${t(L, 'activity_axis')} · ${t(L, 'gold_tier')}`}>
         {(countries ?? []).map((c) => (
           <CountBar key={c.country} label={c.country} value={c.observations} max={maxC} lang={L}
                     href={c.iso ? `/${L}/country/${c.iso}` : undefined} />
@@ -67,7 +77,7 @@ export default async function Overview({ params }: { params: Promise<{ lang: str
         </Note>
       </Section>
 
-      <Section title={t(L, 'by_disease')} hint={t(L, 'activity_axis')}>
+      <Section title={t(L, 'by_disease')} hint={`${t(L, 'activity_axis')} · ${t(L, 'gold_tier')}`}>
         {(diseases ?? []).map((d) => (
           <CountBar key={d.disease} label={d.disease} value={d.observations} max={maxD} lang={L} />
         ))}
@@ -99,6 +109,12 @@ export default async function Overview({ params }: { params: Promise<{ lang: str
             : 'An "inherited" location means the country comes from the study context, not from the claim itself. These observations count, with lower confidence.'}
         </Note>
       </Section>
+
+      {freshness ? (
+        <p className="mb-4 text-[12px]" style={{ color: freshness.is_stale ? '#B04A2F' : MUTED }}>
+          {t(L, 'generated')} {freshness.generated_at.slice(0, 10)} · {num(freshness.observations ?? 0, L)} {t(L, 'observations')} {L === 'fr' ? 'rattachées à un pays' : 'attached to a country'}
+        </p>
+      ) : null}
 
       <p className="text-[12px]" style={{ color: MUTED }}>
         <a href={`/${L}/gaps`} className="font-medium hover:underline" style={{ color: GOLD }}>

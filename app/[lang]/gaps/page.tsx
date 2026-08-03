@@ -20,8 +20,8 @@
  */
 import { notFound } from 'next/navigation';
 import { isLang, t, type Lang } from '@/lib/i18n';
-import { getAllCountryQuality, getFreshness, getGaps, getIndicators, type GapCell, type GapSection, type GapState } from '@/lib/queries';
-import { Empty, MethodBanner, Note, Section, num } from '@/app/ui';
+import { getAllCountryQuality, getFreshness, getGaps, getIndicators, getOverview, type GapCell, type GapSection, type GapState } from '@/lib/queries';
+import { Empty, KeyFact, MethodBanner, Note, Section, num } from '@/app/ui';
 import { GAP_STATE, GOLD, INK, LINE, MUTED } from '@/lib/theme';
 
 export const revalidate = 900;
@@ -62,8 +62,8 @@ export default async function Gaps({ params }: { params: Promise<{ lang: string 
   if (!isLang(lang)) notFound();
   const L = lang as Lang;
 
-  const [cells, indicators, freshness, quality] = await Promise.all([
-    getGaps(), getIndicators(), getFreshness(), getAllCountryQuality(),
+  const [cells, indicators, freshness, quality, overview] = await Promise.all([
+    getGaps(), getIndicators(), getFreshness(), getAllCountryQuality(), getOverview(),
   ]);
 
   if (!cells) return <Empty>migrations/020 et 021 non appliquées.</Empty>;
@@ -83,6 +83,16 @@ export default async function Gaps({ params }: { params: Promise<{ lang: string 
         </p>
       </header>
 
+      {/* EN TÊTE, avant la grille : une cellule vide peut l'être parce que la donnée
+          existe sans localisation exploitable. Le lecteur doit le savoir d'abord. */}
+      {overview && freshness?.observations ? (
+        <KeyFact
+          title={t(L, 'unmapped_title')}
+          value={`${num(overview.observations - freshness.observations, L)} ${t(L, 'of')} ${num(overview.observations, L)}`}
+          body={`${Math.round(((overview.observations - freshness.observations) / Math.max(1, overview.observations)) * 100)} % ${t(L, 'unmapped_body')}`}
+        />
+      ) : null}
+
       <MethodBanner text={
         L === 'fr'
           ? "Une cellule vide signifie « aucune observation dans ce corpus », jamais « aucune donnée au monde ». Le périmètre est une décision publiée : ce qui n'y figure pas n'est pas un manque, c'est un choix. Les manques d'INDICATEUR (prévalence, couverture vaccinale…) ne sont pas mesurables aujourd'hui — voir plus bas."
@@ -100,7 +110,7 @@ export default async function Gaps({ params }: { params: Promise<{ lang: string 
 
       {/* ---------- Onglet 1 : COUVERTURE ---------- */}
       <Section title={L === 'fr' ? '1. Couverture' : '1. Coverage'}
-               hint={L === 'fr' ? 'mesurable aujourd’hui — des comptes d’observations, sans qualification' : 'measurable today — observation counts, unqualified'}>
+               hint={`${L === 'fr' ? 'mesurable aujourd’hui — des comptes d’observations, sans qualification' : 'measurable today — observation counts, unqualified'} · ${t(L, 'gold_tier')}`}>
         {SECTIONS.map((sec) => {
           const rows = cells.filter((c) => c.section === sec);
           if (!rows.length) return null;
@@ -143,7 +153,7 @@ export default async function Gaps({ params }: { params: Promise<{ lang: string 
                         <td className="sticky left-0 bg-white px-3 py-1.5" style={{ borderBottom: `1px solid ${LINE}` }}>
                           {L === 'fr' ? d.disease_canonical : d.disease_en}
                           {/* unité portée par l'en-tête de ligne, quand le sujet en appelle une */}
-                          {d.unit ? <span className="ml-1 text-[10px]" style={{ color: MUTED }}>({d.unit})</span> : null}
+                          {d.unit_hint ? <span className="ml-1 text-[10px]" style={{ color: MUTED }}>({d.unit_hint})</span> : null}
                         </td>
                         {countries.map((c) => {
                           const cell = idx.get(`${c.country_iso}|${d.disease_canonical}`);

@@ -88,6 +88,26 @@ export function MethodBanner({ text }: { text: string }) {
   );
 }
 
+/**
+ * Fait structurant mis en évidence, pas en note. Sert au chiffre des observations
+ * sans pays : un décideur qui lit « 112 cellules vides » doit savoir que près de
+ * la moitié du corpus n'a pas pu entrer dans la grille du tout.
+ */
+export function KeyFact({ title, value, body }: { title: string; value: string; body: string }) {
+  return (
+    <aside className="mb-8 rounded-lg p-5" style={{ background: '#FFF4E0', border: `1px solid ${GOLD}` }}>
+      <div className="text-[13px] font-semibold uppercase tracking-wide" style={{ color: GOLD }}>{title}</div>
+      <div className="mt-1 text-3xl font-bold tabular-nums" style={{ color: INK }}>{value}</div>
+      <p className="mt-2 max-w-3xl text-[13px] leading-relaxed" style={{ color: INK }}>{body}</p>
+    </aside>
+  );
+}
+
+/** Palier sur lequel porte un chiffre — affiché partout où l'écart existe. */
+export function Tier({ children }: { children: ReactNode }) {
+  return <span className="text-[11px] italic" style={{ color: MUTED }}>{children}</span>;
+}
+
 export function Empty({ children }: { children: ReactNode }) {
   return <p className="text-sm" style={{ color: MUTED }}>{children}</p>;
 }

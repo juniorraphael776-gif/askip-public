@@ -78,7 +78,9 @@ export type GapSection = 'maladies' | 'etats_nutritionnels' | 'indicateurs';
 export interface GapCell {
   grid_version: string; section: GapSection;
   country_iso: string; country_fr: string; country_en: string;
-  disease_canonical: string; disease_en: string; unit: string | null; rationale: string;
+  disease_canonical: string; disease_en: string; rationale: string;
+  /** Portée par l'ENTITÉ (unit_hint), jamais recopiée dans la grille. */
+  unit_hint: string | null;
   observations: number; years: number[] | null; state: GapState;
 }
 

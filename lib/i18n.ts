@@ -33,6 +33,10 @@ const DICT = {
     generated: 'Données générées le', source: 'Source', back: 'Retour',
     no_data: 'Aucune donnée dans ce corpus.',
     activity_axis: 'activité de recherche documentée',
+    gold_tier: 'comptes au palier Gold — le corpus complet en porte davantage',
+    unmapped_title: 'Près de la moitié du corpus n’entre dans aucune carte',
+    unmapped_body: 'observations ne sont rattachées à aucun pays. Elles sont réelles et validées, mais absentes de toute vue géographique — y compris de la grille des manques ci-dessous. Un pays « vide » peut donc l’être parce que la donnée existe sans localisation exploitable.',
+    of: 'sur',
   },
   en: {
     title: 'ASKIP · African health knowledge',
@@ -52,6 +56,10 @@ const DICT = {
     generated: 'Data generated on', source: 'Source', back: 'Back',
     no_data: 'No data in this corpus.',
     activity_axis: 'documented research activity',
+    gold_tier: 'Gold-tier counts — the full corpus holds more',
+    unmapped_title: 'Nearly half the corpus fits no map',
+    unmapped_body: 'observations are attached to no country. They are real and validated, but absent from every geographic view — including the gap grid below. An "empty" country may be empty because the data exists without usable location.',
+    of: 'of',
   },
 } as const;
 
