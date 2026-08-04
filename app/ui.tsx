@@ -95,7 +95,7 @@ export function MethodBanner({ text }: { text: string }) {
  */
 export function KeyFact({ title, value, body }: { title: string; value: string; body: string }) {
   return (
-    <aside className="mb-8 rounded-lg p-5" style={{ background: '#FFF4E0', border: `1px solid ${GOLD}` }}>
+    <aside className="rounded-lg p-5" style={{ background: '#FFF4E0', border: `1px solid ${GOLD}` }}>
       <div className="text-[13px] font-semibold uppercase tracking-wide" style={{ color: GOLD }}>{title}</div>
       <div className="mt-1 text-3xl font-bold tabular-nums" style={{ color: INK }}>{value}</div>
       <p className="mt-2 max-w-3xl text-[13px] leading-relaxed" style={{ color: INK }}>{body}</p>

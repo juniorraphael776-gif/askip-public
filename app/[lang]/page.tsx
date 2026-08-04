@@ -49,12 +49,22 @@ export default async function Overview({ params }: { params: Promise<{ lang: str
 
       {/* Fait structurant, en évidence et non en note : les observations sans pays
           sont invisibles dans TOUTE vue géographique, grille des manques comprise. */}
+      {/* Deux caractéristiques MESURÉES du corpus, en tête et non en note. Elles
+          bornent tout ce qui suit : sans pays, une observation n'entre dans aucune
+          carte ; sans date, aucune lecture temporelle ne la concerne. */}
       {reach ? (
-        <KeyFact
-          title={t(L, 'unmapped_title')}
-          value={`${num(reach.observations_unlocated, L)} ${t(L, 'of')} ${num(reach.observations_total, L)}`}
-          body={`${Math.round((reach.observations_unlocated / Math.max(1, reach.observations_total)) * 100)} % ${t(L, 'unmapped_body')}`}
-        />
+        <div className="mb-8 grid gap-3 md:grid-cols-2">
+          <KeyFact
+            title={t(L, 'unmapped_title')}
+            value={`${num(reach.observations_unlocated, L)} ${t(L, 'of')} ${num(reach.observations_total, L)}`}
+            body={`${Math.round((reach.observations_unlocated / Math.max(1, reach.observations_total)) * 100)} % ${t(L, 'unmapped_body')}`}
+          />
+          <KeyFact
+            title={t(L, 'undated_title')}
+            value={`${num(reach.observations_total - reach.observations_dated, L)} ${t(L, 'of')} ${num(reach.observations_total, L)}`}
+            body={`${Math.round(((reach.observations_total - reach.observations_dated) / Math.max(1, reach.observations_total)) * 100)} % ${t(L, 'undated_body')}`}
+          />
+        </div>
       ) : null}
 
       <section className="mb-12 grid grid-cols-2 gap-3 md:grid-cols-3">

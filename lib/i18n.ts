@@ -36,6 +36,9 @@ const DICT = {
     gold_tier: 'comptes au palier Gold — le corpus complet en porte davantage',
     unmapped_title: 'Près de la moitié du corpus n’entre dans aucune carte',
     unmapped_body: 'observations ne sont rattachées à aucun pays. Elles sont réelles et validées, mais absentes de toute vue géographique — y compris de la grille des manques ci-dessous. Un pays « vide » peut donc l’être parce que la donnée existe sans localisation exploitable.',
+    undated_title: 'Deux tiers du corpus ne portent aucune date',
+    undated_body: 'observations n’ont pas d’année exploitable. Elles ne sont pas anciennes : leur période est inconnue. Aucune lecture temporelle — « données récentes », « aucune donnée depuis 2022 » — ne porte sur cette part du corpus.',
+    reach_title: 'Ce que cette grille peut mesurer',
     of: 'sur',
   },
   en: {
@@ -59,6 +62,9 @@ const DICT = {
     gold_tier: 'Gold-tier counts — the full corpus holds more',
     unmapped_title: 'Nearly half the corpus fits no map',
     unmapped_body: 'observations are attached to no country. They are real and validated, but absent from every geographic view — including the gap grid below. An "empty" country may be empty because the data exists without usable location.',
+    undated_title: 'Two thirds of the corpus carries no date',
+    undated_body: 'observations have no usable year. They are not old: their period is unknown. No temporal reading — "recent data", "nothing since 2022" — applies to this share of the corpus.',
+    reach_title: 'What this grid can measure',
     of: 'of',
   },
 } as const;
@@ -66,3 +72,33 @@ const DICT = {
 export type Key = keyof typeof DICT.fr;
 export const t = (lang: Lang, key: Key): string => DICT[lang][key];
 export const other = (lang: Lang): Lang => (lang === 'fr' ? 'en' : 'fr');
+
+/**
+ * Langue de départ, depuis l'en-tête Accept-Language du navigateur.
+ *
+ * Le portail est atteint depuis LinkedIn ou un courriel : un écran de choix de
+ * langue entre le clic et le contenu fait perdre du monde. On redirige donc vers
+ * la langue du navigateur, et le sélecteur reste visible pour en changer — la
+ * détection propose, elle n'enferme pas.
+ *
+ * `fr` par défaut : le portail sert d'abord des institutions francophones, et le
+ * corpus est à 27 % en français alors que l'interface l'est entièrement.
+ */
+export function pickLang(acceptLanguage: string | null | undefined): Lang {
+  if (!acceptLanguage) return 'fr';
+  const ranked = acceptLanguage
+    .split(',')
+    .map((part) => {
+      const [tag, ...params] = part.trim().split(';');
+      const q = params.find((p) => p.trim().startsWith('q='));
+      return { tag: (tag ?? '').trim().toLowerCase(), q: q ? Number(q.split('=')[1]) || 0 : 1 };
+    })
+    .filter((x) => x.tag)
+    .sort((a, b) => b.q - a.q);
+
+  for (const { tag } of ranked) {
+    const base = tag.split('-')[0];          // « en-GB » -> « en »
+    if (base && isLang(base)) return base;
+  }
+  return 'fr';
+}
