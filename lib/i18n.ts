@@ -39,6 +39,11 @@ const DICT = {
     undated_title: 'Deux tiers du corpus ne portent aucune date',
     undated_body: 'observations n’ont pas d’année exploitable. Elles ne sont pas anciennes : leur période est inconnue. Aucune lecture temporelle — « données récentes », « aucune donnée depuis 2022 » — ne porte sur cette part du corpus.',
     reach_title: 'Ce que cette grille peut mesurer',
+    scope_line: 'La grille déclare {cs} pays sur les {cc} que documente le corpus, et {ts} sujets sur {tc}. Une cellule vide dit qu’il n’y a rien pour ce couple DANS CE PÉRIMÈTRE — pas qu’il n’y a rien.',
+    in_scope_of: 'dans le périmètre, sur',
+    in_corpus: 'dans le corpus',
+    unlocated_section: 'sans portée nationale',
+    unlocated_section_body: 'evidences valides dont la portée est supra-nationale ou hors périmètre géographique — « 11 % des décès maternels en Afrique subsaharienne » n’a jamais eu de pays à perdre. Comptées à part, jamais additionnées aux cellules.',
     of: 'sur',
   },
   en: {
@@ -65,6 +70,11 @@ const DICT = {
     undated_title: 'Two thirds of the corpus carries no date',
     undated_body: 'observations have no usable year. They are not old: their period is unknown. No temporal reading — "recent data", "nothing since 2022" — applies to this share of the corpus.',
     reach_title: 'What this grid can measure',
+    scope_line: 'The grid declares {cs} countries of the {cc} the corpus documents, and {ts} topics of {tc}. An empty cell says there is nothing for that pair WITHIN THIS SCOPE — not that there is nothing.',
+    in_scope_of: 'within scope, out of',
+    in_corpus: 'in the corpus',
+    unlocated_section: 'with no national scope',
+    unlocated_section_body: 'valid evidence whose scope is supra-national or outside the geographic perimeter — "11% of maternal deaths in sub-Saharan Africa" never had a country to lose. Counted separately, never added to the cells.',
     of: 'of',
   },
 } as const;

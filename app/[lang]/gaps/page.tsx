@@ -20,7 +20,7 @@
  */
 import { notFound } from 'next/navigation';
 import { isLang, t, type Lang } from '@/lib/i18n';
-import { getAllCountryQuality, getCoverageReach, getFreshness, getGaps, getIndicators, getOverview, type GapCell, type GapSection, type GapState } from '@/lib/queries';
+import { getAllCountryQuality, getCoverageReach, getFreshness, getGaps, getIndicators, getOverview, getScopeReach, getTopicReach, getUnlocatedBySection, type GapCell, type GapSection, type GapState } from '@/lib/queries';
 import { Empty, KeyFact, MethodBanner, Note, Section, num } from '@/app/ui';
 import { GAP_STATE, GOLD, INK, LINE, MUTED } from '@/lib/theme';
 
@@ -65,7 +65,11 @@ export default async function Gaps({ params }: { params: Promise<{ lang: string 
   const [cells, indicators, freshness, quality, overview] = await Promise.all([
     getGaps(), getIndicators(), getFreshness(), getAllCountryQuality(), getOverview(),
   ]);
-  const reach = await getCoverageReach();
+  const [reach, scope, topicReach, unlocated] = await Promise.all([
+    getCoverageReach(), getScopeReach(), getTopicReach(), getUnlocatedBySection(),
+  ]);
+  const reachOf = new Map((topicReach ?? []).map((r) => [r.topic, r]));
+  const unlocatedOf = new Map((unlocated ?? []).map((u) => [u.section, u]));
 
   if (!cells) return <Empty>migrations/020 et 021 non appliquées.</Empty>;
   if (cells.length === 0) return <Empty>La grille de référence est vide : appliquer migrations/021_scope_grid_v1.sql.</Empty>;
@@ -120,6 +124,19 @@ export default async function Gaps({ params }: { params: Promise<{ lang: string 
       ) : null}
 
       {/* ---------- Onglet 1 : COUVERTURE ---------- */}
+      {/* NOMMER LE PÉRIMÈTRE avant toute cellule : sans cela, une case vide se lit
+          comme une absence de données alors qu'elle peut être un choix de périmètre. */}
+      {scope ? (
+        <p className="mb-5 rounded-lg p-4 text-[13px] leading-relaxed"
+           style={{ background: '#F5F2EA', border: `1px solid ${LINE}`, color: INK }}>
+          {t(L, 'scope_line')
+            .replace('{cs}', String(scope.countries_in_scope))
+            .replace('{cc}', String(scope.countries_in_corpus))
+            .replace('{ts}', String(scope.topics_in_scope))
+            .replace('{tc}', String(scope.topics_in_corpus))}
+        </p>
+      ) : null}
+
       <Section title={L === 'fr' ? '1. Couverture' : '1. Coverage'}
                hint={`${L === 'fr' ? 'mesurable aujourd’hui — des comptes d’observations, sans qualification' : 'measurable today — observation counts, unqualified'} · ${t(L, 'gold_tier')}`}>
         {SECTIONS.map((sec) => {
@@ -145,6 +162,16 @@ export default async function Gaps({ params }: { params: Promise<{ lang: string 
                 {' · '}{rows.length} {L === 'fr' ? 'cellules dans cette section' : 'cells in this section'}
               </p>
 
+              {/* 3. Les evidences sans portée nationale, comptées À PART : elles sont
+                  valides, elles n'entrent dans aucune cellule, les taire produirait un
+                  total qui n'est le total de rien. */}
+              {unlocatedOf.get(sec)?.evidences_unlocated ? (
+                <p className="mb-2 text-[11px]" style={{ color: MUTED }}>
+                  + <strong style={{ color: GOLD }}>{num(unlocatedOf.get(sec)!.evidences_unlocated, L)}</strong>{' '}
+                  {t(L, 'unlocated_section')} — {t(L, 'unlocated_section_body')}
+                </p>
+              ) : null}
+
               <div className="overflow-x-auto rounded-lg" style={{ border: `1px solid ${LINE}`, background: '#fff' }}>
                 <table className="w-full border-collapse text-[12px]">
                   <thead>
@@ -165,6 +192,14 @@ export default async function Gaps({ params }: { params: Promise<{ lang: string 
                           {L === 'fr' ? d.disease_canonical : d.disease_en}
                           {/* unité portée par l'en-tête de ligne, quand le sujet en appelle une */}
                           {d.unit_hint ? <span className="ml-1 text-[10px]" style={{ color: MUTED }}>({d.unit_hint})</span> : null}
+                          {/* 1. LE DÉNOMINATEUR : le chiffre du périmètre est juste,
+                              c'est son isolement qui ment. */}
+                          {reachOf.get(d.disease_canonical) ? (
+                            <span className="ml-1 block text-[10px]" style={{ color: MUTED }}>
+                              {num(reachOf.get(d.disease_canonical)!.evidences_in_scope, L)} {t(L, 'in_scope_of')}{' '}
+                              {num(reachOf.get(d.disease_canonical)!.evidences_corpus, L)} {t(L, 'in_corpus')}
+                            </span>
+                          ) : null}
                         </td>
                         {countries.map((c) => {
                           const cell = idx.get(`${c.country_iso}|${d.disease_canonical}`);

@@ -157,3 +157,29 @@ export const getResearcherPublications = (researcherId: string) =>
 export const getEvidenceOrigin = () =>
   safe<{ disease: string; researcher_country: string; evidences: number }[]>(() =>
     db.from('evidence_origin_by_country').select('*').order('evidences', { ascending: false }).limit(400));
+
+/* ------------------------------------------------------------------ */
+/* Dénominateurs : ce que le périmètre voit, ce que le corpus porte     */
+/* ------------------------------------------------------------------ */
+
+export interface TopicReach {
+  topic: string; section: string;
+  evidences_corpus: number; evidences_located: number;
+  evidences_in_scope: number; evidences_unlocated: number;
+}
+
+export interface ScopeReach {
+  countries_in_scope: number; countries_in_corpus: number;
+  topics_in_scope: number; topics_in_corpus: number; cells: number;
+  observations_unlocated: number; observations_total: number;
+}
+
+export const getTopicReach = () =>
+  safe<TopicReach[]>(() => db.from('topic_reach').select('*'));
+
+export const getScopeReach = () =>
+  safe<ScopeReach[]>(() => db.from('scope_reach').select('*').limit(1)).then((r) => r?.[0] ?? null);
+
+export const getUnlocatedBySection = () =>
+  safe<{ section: string; evidences_unlocated: number; evidences_total: number }[]>(() =>
+    db.from('unlocated_by_section').select('*'));
