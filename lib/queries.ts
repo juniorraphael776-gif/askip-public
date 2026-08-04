@@ -174,8 +174,16 @@ export interface ScopeReach {
   observations_unlocated: number; observations_total: number;
 }
 
-export const getTopicReach = () =>
-  safe<TopicReach[]>(() => db.from('topic_reach').select('*'));
+/**
+ * UNIQUEMENT les sujets du périmètre. `topic_reach` porte 3 388 lignes — toute la
+ * longue traîne du corpus — et PostgREST en renvoie mille au plus : un select
+ * sans filtre ramenait des sujets quelconques et jamais ceux de la grille, donc
+ * aucun dénominateur ne s'affichait. Le plafond ne lève pas d'erreur, il tronque.
+ */
+export const getTopicReach = (topics: string[]) =>
+  topics.length === 0
+    ? Promise.resolve([] as TopicReach[])
+    : safe<TopicReach[]>(() => db.from('topic_reach').select('*').in('topic', topics));
 
 export const getScopeReach = () =>
   safe<ScopeReach[]>(() => db.from('scope_reach').select('*').limit(1)).then((r) => r?.[0] ?? null);

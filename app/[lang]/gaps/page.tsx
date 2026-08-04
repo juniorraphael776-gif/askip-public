@@ -65,14 +65,16 @@ export default async function Gaps({ params }: { params: Promise<{ lang: string 
   const [cells, indicators, freshness, quality, overview] = await Promise.all([
     getGaps(), getIndicators(), getFreshness(), getAllCountryQuality(), getOverview(),
   ]);
-  const [reach, scope, topicReach, unlocated] = await Promise.all([
-    getCoverageReach(), getScopeReach(), getTopicReach(), getUnlocatedBySection(),
-  ]);
-  const reachOf = new Map((topicReach ?? []).map((r) => [r.topic, r]));
-  const unlocatedOf = new Map((unlocated ?? []).map((u) => [u.section, u]));
-
   if (!cells) return <Empty>migrations/020 et 021 non appliquées.</Empty>;
   if (cells.length === 0) return <Empty>La grille de référence est vide : appliquer migrations/021_scope_grid_v1.sql.</Empty>;
+
+  const [reach, scope, unlocated] = await Promise.all([
+    getCoverageReach(), getScopeReach(), getUnlocatedBySection(),
+  ]);
+  // Les sujets viennent de la grille elle-même : on ne demande que ce qu'on affiche.
+  const topicReach = await getTopicReach([...new Set(cells.map((c) => c.disease_canonical))]);
+  const reachOf = new Map((topicReach ?? []).map((r) => [r.topic, r]));
+  const unlocatedOf = new Map((unlocated ?? []).map((u) => [u.section, u]));
 
   const countries = [...new Map(cells.map((c) => [c.country_iso, c])).values()]
     .sort((a, b) => (L === 'fr' ? a.country_fr.localeCompare(b.country_fr) : a.country_en.localeCompare(b.country_en)));
