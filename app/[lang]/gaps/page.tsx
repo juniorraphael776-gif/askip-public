@@ -20,8 +20,8 @@
  */
 import { notFound } from 'next/navigation';
 import { isLang, t, type Lang } from '@/lib/i18n';
-import { getAllCountryQuality, getCoverageReach, getFreshness, getGaps, getIndicators, getOverview, getScopeReach, getTopicReach, getUnlocatedBySection, type GapCell, type GapSection, type GapState } from '@/lib/queries';
-import { Empty, KeyFact, MethodBanner, Note, Section, num } from '@/app/ui';
+import { faults, getAllCountryQuality, getCoverageReach, getFreshness, getGaps, getIndicators, getOverview, getScopeReach, getTopicReach, getUnlocatedBySection, type GapCell, type GapSection, type GapState } from '@/lib/queries';
+import { Empty, KeyFact, MethodBanner, Note, Section, num, Diagnostic } from '@/app/ui';
 import { GAP_STATE, GOLD, INK, LINE, MUTED } from '@/lib/theme';
 
 export const revalidate = 900;
@@ -65,7 +65,7 @@ export default async function Gaps({ params }: { params: Promise<{ lang: string 
   const [cells, indicators, freshness, quality, overview] = await Promise.all([
     getGaps(), getIndicators(), getFreshness(), getAllCountryQuality(), getOverview(),
   ]);
-  if (!cells) return <Empty>migrations/020 et 021 non appliquées.</Empty>;
+  if (!cells) return <Diagnostic lang={L} faults={faults()} />;
   if (cells.length === 0) return <Empty>La grille de référence est vide : appliquer migrations/021_scope_grid_v1.sql.</Empty>;
 
   const [reach, scope, unlocated] = await Promise.all([
@@ -89,6 +89,12 @@ export default async function Gaps({ params }: { params: Promise<{ lang: string 
             : `Measured against a declared scope of ${countries.length} countries, curated by hand, in three sections that do not add up.`}
         </p>
       </header>
+
+      {/* PANNE PARTIELLE. La grille peut s'afficher alors que les dénominateurs, la
+          qualité ou les non-localisées ont échoué : l'écran serait alors incomplet
+          sans le dire, et un manque affiché se confondrait avec une lecture ratée.
+          C'est exactement la confusion que cet écran existe pour éviter. */}
+      {faults().length > 0 ? <div className="mb-8"><Diagnostic lang={L} faults={faults()} partial /></div> : null}
 
       {/* EN TÊTE, avant la grille : une cellule vide peut l'être parce que la donnée
           existe sans localisation exploitable. Le lecteur doit le savoir d'abord. */}

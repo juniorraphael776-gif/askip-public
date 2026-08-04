@@ -16,8 +16,8 @@
  */
 import { notFound } from 'next/navigation';
 import { isLang, t, type Lang } from '@/lib/i18n';
-import { getEvidenceOrigin, getResearchers } from '@/lib/queries';
-import { CountBar, Empty, MethodBanner, Note, Section, Stat, num } from '@/app/ui';
+import { faults, getEvidenceOrigin, getResearchers } from '@/lib/queries';
+import { CountBar, Diagnostic, Empty, MethodBanner, Note, Section, Stat, num } from '@/app/ui';
 import { INK, LINE, MUTED } from '@/lib/theme';
 
 export const revalidate = 900;
@@ -28,15 +28,15 @@ export default async function Researchers({ params }: { params: Promise<{ lang: 
   const L = lang as Lang;
 
   const [people, origin] = await Promise.all([getResearchers(), getEvidenceOrigin()]);
-  if (!people) return <Empty>migrations/020 non appliquée.</Empty>;
+  if (!people) return <Diagnostic lang={L} faults={faults()} />;
 
   // Agrégat non nominatif : part de la production documentée par pays de
   // RATTACHEMENT de l'auteur identifié. Ne dit rien d'une expertise individuelle.
-  const byCountry = new Map<string, number>();
-  for (const r of origin ?? []) byCountry.set(r.researcher_country, (byCountry.get(r.researcher_country) ?? 0) + r.evidences);
-  const ranked = [...byCountry.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12);
-  const maxC = Math.max(1, ...ranked.map(([, n]) => n));
-  const totalOrigin = [...byCountry.values()].reduce((s, n) => s + n, 0);
+  // Le total et le classement viennent de la base sur la TOTALITÉ des lignes.
+  const ranked: [string, number][] = (origin ?? []).map((r) => [r.researcher_country, r.evidences]);
+  const top = ranked.slice(0, 12);
+  const maxC = Math.max(1, ...top.map(([, n]) => n));
+  const totalOrigin = ranked.reduce((s, [, n]) => s + n, 0);
   const withPubs = people.filter((p) => p.publications > 0).length;
 
   return (
@@ -64,7 +64,7 @@ export default async function Researchers({ params }: { params: Promise<{ lang: 
 
       <Section title={L === 'fr' ? "D'où vient la production documentée" : 'Where documented output comes from'}
                hint={L === 'fr' ? 'agrégat non nominatif, par pays de rattachement de l’auteur identifié' : 'non-nominative aggregate, by country of affiliation of the identified author'}>
-        {ranked.length === 0 ? <Empty>{t(L, 'no_data')}</Empty> : ranked.map(([c, n]) => (
+        {top.length === 0 ? <Empty>{t(L, 'no_data')}</Empty> : top.map(([c, n]) => (
           <CountBar key={c} label={`${c} — ${Math.round((n / Math.max(1, totalOrigin)) * 100)} %`} value={n} max={maxC} lang={L} />
         ))}
         <Note>

@@ -9,6 +9,7 @@
  *
  * Toutes les vues lues vivent dans le schéma public_api (migration 020).
  */
+import { cache } from 'react';
 import { db } from '@/lib/supabase-public';
 
 export interface OverviewCounts {
@@ -30,35 +31,73 @@ export interface CountryQuality {
   diseases: number; first_year: number | null; last_year: number | null;
 }
 
-/** null = la surface publique n'est pas encore en place (migration 020 non appliquée). */
+/* ------------------------------------------------------------------ */
+/* Diagnostic : pourquoi il n'y a rien                                  */
+/*                                                                      */
+/* `safe` rendait `null` pour deux causes opposées et l'écran Knowledge  */
+/* Gaps en déduisait toujours la même — « migrations 020 et 021 non      */
+/* appliquées ». En production elles l'étaient : la vraie cause était un */
+/* dépassement de délai sous charge. Une panne de PERFORMANCE s'affichait*/
+/* comme une absence de DONNÉES, sur l'écran justement conçu pour        */
+/* distinguer les deux, et le message envoyait réparer ce qui marchait.  */
+/*                                                                      */
+/* La cause est donc conservée à côté du résultat. Le collecteur passe   */
+/* par `cache()`, donc PROPRE À CHAQUE REQUÊTE : un tableau de module    */
+/* fuirait d'un visiteur au suivant.                                    */
+/* ------------------------------------------------------------------ */
+export type FaultKind = 'absent' | 'delai' | 'refuse' | 'echec';
+export interface Fault { object: string; kind: FaultKind; detail: string }
+
+const faultStore = cache((): Fault[] => []);
+
+/** Pannes rencontrées pendant CETTE requête. À lire APRÈS les `await`. */
+export const faults = (): Fault[] => faultStore();
+
+/** Le code fait foi : le message seul ne distingue pas une vue absente d'une vue lente. */
+function classify(code: string | undefined, message: string): FaultKind {
+  if (code === '42P01' || code === '42883' || code === 'PGRST202' || code === 'PGRST205') return 'absent';
+  if (code === '57014' || /statement timeout|canceling statement/i.test(message)) return 'delai';
+  if (code === '42501' || code === 'PGRST106' || code === 'PGRST301') return 'refuse';
+  return 'echec';
+}
+
+/** null = la lecture n'a pas abouti. La CAUSE est dans `faults()` — l'appelant ne la devine pas. */
 // Le builder Supabase est « thenable », pas une Promise : PromiseLike, pas Promise.
-async function safe<T>(run: () => PromiseLike<{ data: T | null; error: { message: string } | null }>): Promise<T | null> {
+async function safe<T>(
+  object: string,
+  run: () => PromiseLike<{ data: T | null; error: { message: string; code?: string } | null }>,
+): Promise<T | null> {
   const { data, error } = await run();
-  if (error) { console.error('[public_api]', error.message); return null; }
+  if (error) {
+    const kind = classify(error.code, error.message);
+    console.error(`[public_api] ${object} — ${kind} — ${error.code ?? '?'} — ${error.message}`);
+    faultStore().push({ object, kind, detail: error.message });
+    return null;
+  }
   return data;
 }
 
 export const getOverview = () =>
-  safe<OverviewCounts[]>(() => db.from('overview_counts').select('*').limit(1)).then((r) => r?.[0] ?? null);
+  safe<OverviewCounts[]>('overview_counts', () => db.from('overview_counts').select('*').limit(1)).then((r) => r?.[0] ?? null);
 
 export const getCountryTotals = (limit = 12) =>
-  safe<CountryTotal[]>(() => db.from('country_totals').select('*').order('observations', { ascending: false }).limit(limit));
+  safe<CountryTotal[]>('country_totals', () => db.from('country_totals').select('*').order('observations', { ascending: false }).limit(limit));
 
 export const getDiseaseTotals = (limit = 20) =>
-  safe<DiseaseTotal[]>(() => db.from('disease_totals').select('*').order('observations', { ascending: false }).limit(limit));
+  safe<DiseaseTotal[]>('disease_totals', () => db.from('disease_totals').select('*').order('observations', { ascending: false }).limit(limit));
 
 export const getTimeline = () =>
-  safe<TimelinePoint[]>(() => db.from('timeline').select('*').order('year', { ascending: true }));
+  safe<TimelinePoint[]>('timeline', () => db.from('timeline').select('*').order('year', { ascending: true }));
 
 export const getCountryProfile = (iso: string) =>
-  safe<CountryProfileRow[]>(() => db.from('country_profile').select('*').eq('iso', iso).order('observations', { ascending: false }));
+  safe<CountryProfileRow[]>('country_profile', () => db.from('country_profile').select('*').eq('iso', iso).order('observations', { ascending: false }));
 
 export const getCountryQuality = (country: string) =>
-  safe<CountryQuality[]>(() => db.from('country_quality').select('*').eq('country', country).limit(1)).then((r) => r?.[0] ?? null);
+  safe<CountryQuality[]>('country_quality', () => db.from('country_quality').select('*').eq('country', country).limit(1)).then((r) => r?.[0] ?? null);
 
 /** Liste des pays de la grille, pour la navigation. */
 export const getGridCountries = () =>
-  safe<{ country_iso: string; country_fr: string; country_en: string }[]>(() =>
+  safe<{ country_iso: string; country_fr: string; country_en: string }[]>('scope_grid', () =>
     db.from('scope_grid').select('country_iso, country_fr, country_en').eq('grid_version', 'v1'),
   ).then((rows) => {
     if (!rows) return null;
@@ -91,10 +130,10 @@ export interface Freshness {
 }
 
 export const getGaps = () =>
-  safe<GapCell[]>(() => db.from('coverage_gaps').select('*').eq('grid_version', 'v1'));
+  safe<GapCell[]>('coverage_gaps', () => db.from('coverage_gaps').select('*').eq('grid_version', 'v1'));
 
 export const getIndicators = () =>
-  safe<{ indicator: string; label_fr: string; label_en: string; status: string; note: string }[]>(() =>
+  safe<{ indicator: string; label_fr: string; label_en: string; status: string; note: string }[]>('scope_indicators', () =>
     db.from('scope_indicators').select('*'));
 
 export interface CoverageReach {
@@ -104,15 +143,15 @@ export interface CoverageReach {
 
 /** Portée réelle : le compte des observations hors carte vient de la BASE. */
 export const getCoverageReach = () =>
-  safe<CoverageReach[]>(() => db.from('coverage_reach').select('*').limit(1)).then((r) => r?.[0] ?? null);
+  safe<CoverageReach[]>('coverage_reach', () => db.from('coverage_reach').select('*').limit(1)).then((r) => r?.[0] ?? null);
 
 /** Date de la DONNÉE, pas du rendu : la vue matérialisée ne suit pas le corpus toute seule. */
 export const getFreshness = () =>
-  safe<Freshness[]>(() => db.from('data_freshness').select('*').limit(1)).then((r) => r?.[0] ?? null);
+  safe<Freshness[]>('data_freshness', () => db.from('data_freshness').select('*').limit(1)).then((r) => r?.[0] ?? null);
 
 /** Qualité par pays, pour l'onglet Qualité. */
 export const getAllCountryQuality = () =>
-  safe<CountryQuality[]>(() => db.from('country_quality').select('*').order('observations', { ascending: false }));
+  safe<CountryQuality[]>('country_quality', () => db.from('country_quality').select('*').order('observations', { ascending: false }));
 
 /* ------------------------------------------------------------------ */
 /* Disease Explorer + Researchers                                       */
@@ -131,14 +170,14 @@ export const searchEvidence = (p: {
   q?: string; topic?: string; country?: string; language?: string; section?: string;
   limit?: number; offset?: number;
 }) =>
-  safe<SearchRow[]>(() => db.rpc('search_evidence', {
+  safe<SearchRow[]>('search_evidence', () => db.rpc('search_evidence', {
     p_q: p.q || null, p_topic: p.topic || null, p_country: p.country || null,
     p_language: p.language || null, p_section: p.section || null,
     p_limit: p.limit ?? 25, p_offset: p.offset ?? 0,
   }));
 
 export const getSearchFacets = () =>
-  safe<{ section: string; topic: string; evidences: number; countries: number }[]>(() =>
+  safe<{ section: string; topic: string; evidences: number; countries: number }[]>('search_facets', () =>
     db.from('search_facets').select('*').order('evidences', { ascending: false }));
 
 export interface Researcher {
@@ -147,16 +186,24 @@ export interface Researcher {
 }
 
 export const getResearchers = () =>
-  safe<Researcher[]>(() => db.from('researcher').select('*').order('publications', { ascending: false }));
+  safe<Researcher[]>('researcher', () => db.from('researcher').select('*').order('publications', { ascending: false }));
 
 export const getResearcherPublications = (researcherId: string) =>
-  safe<{ publication_id: string; title: string; journal: string | null; publication_year: number | null; doi: string | null; pmid: string | null; external_source: string | null }[]>(() =>
+  safe<{ publication_id: string; title: string; journal: string | null; publication_year: number | null; doi: string | null; pmid: string | null; external_source: string | null }[]>('researcher_publications', () =>
     db.from('researcher_publications').select('*').eq('researcher_id', researcherId).order('publication_year', { ascending: false }));
 
-/** Agrégat NON NOMINATIF : d'où vient la production documentée, sans nommer personne. */
+/**
+ * Agrégat NON NOMINATIF : d'où vient la production documentée, sans nommer personne.
+ *
+ * L'agrégation par pays se fait EN BASE (030). Elle se faisait ici, sur les 400 premières
+ * des 1 350 lignes de `evidence_origin_by_country` : les pays à faible volume tombaient
+ * sous la coupe et leur part affichée était fausse, sans erreur ni signal. Sommer des
+ * comptes par maladie double-comptait de surcroît les evidences portant plusieurs
+ * maladies ; la vue compte des evidences DISTINCTES.
+ */
 export const getEvidenceOrigin = () =>
-  safe<{ disease: string; researcher_country: string; evidences: number }[]>(() =>
-    db.from('evidence_origin_by_country').select('*').order('evidences', { ascending: false }).limit(400));
+  safe<{ researcher_country: string; evidences: number; topics: number }[]>('evidence_origin_totals', () =>
+    db.from('evidence_origin_totals').select('*').order('evidences', { ascending: false }));
 
 /* ------------------------------------------------------------------ */
 /* Dénominateurs : ce que le périmètre voit, ce que le corpus porte     */
@@ -183,11 +230,11 @@ export interface ScopeReach {
 export const getTopicReach = (topics: string[]) =>
   topics.length === 0
     ? Promise.resolve([] as TopicReach[])
-    : safe<TopicReach[]>(() => db.from('topic_reach').select('*').in('topic', topics));
+    : safe<TopicReach[]>('topic_reach', () => db.from('topic_reach').select('*').in('topic', topics));
 
 export const getScopeReach = () =>
-  safe<ScopeReach[]>(() => db.from('scope_reach').select('*').limit(1)).then((r) => r?.[0] ?? null);
+  safe<ScopeReach[]>('scope_reach', () => db.from('scope_reach').select('*').limit(1)).then((r) => r?.[0] ?? null);
 
 export const getUnlocatedBySection = () =>
-  safe<{ section: string; evidences_unlocated: number; evidences_total: number }[]>(() =>
+  safe<{ section: string; evidences_unlocated: number; evidences_total: number }[]>('unlocated_by_section', () =>
     db.from('unlocated_by_section').select('*'));

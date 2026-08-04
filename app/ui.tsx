@@ -11,6 +11,7 @@
  * c'est le choix des formes.
  */
 import type { ReactNode } from 'react';
+import type { Lang } from '@/lib/i18n';
 import { CARD, GOLD, GREEN, INK, LINE, MUTED } from '@/lib/theme';
 
 export const num = (v: number | null | undefined, lang: 'fr' | 'en' = 'fr'): string =>
@@ -110,4 +111,66 @@ export function Tier({ children }: { children: ReactNode }) {
 
 export function Empty({ children }: { children: ReactNode }) {
   return <p className="text-sm" style={{ color: MUTED }}>{children}</p>;
+}
+
+/**
+ * Panne de lecture, nommée par sa vraie cause.
+ *
+ * Cet écran affichait « migrations/020 et 021 non appliquées » quelle que soit la
+ * raison. En production elles l'étaient : quatre requêtes dépassaient le délai sous
+ * charge. Le portail diagnostiquait donc mal sa propre panne et envoyait réparer une
+ * chose en place — sur l'écran conçu, précisément, pour distinguer « on ne sait pas »
+ * de « on n'a pas pu lire ».
+ *
+ * Une donnée absente et une lecture ratée ne se disent pas de la même façon.
+ */
+export function Diagnostic({ lang, faults, partial = false }: {
+  lang: Lang;
+  faults: { object: string; kind: string; detail: string }[];
+  /** L'écran s'affiche quand même : dire ce qui MANQUE dedans, pas qu'il est vide. */
+  partial?: boolean;
+}) {
+  const fr = lang === 'fr';
+  const say: Record<string, [string, string]> = {
+    absent: ['objet absent en base — la migration correspondante n’est pas appliquée',
+             'object missing in the database — the matching migration has not been applied'],
+    delai:  ['requête trop lente — dépassement du délai serveur. La donnée existe, elle n’a pas pu être lue à temps',
+             'query too slow — server timeout. The data exists; it could not be read in time'],
+    refuse: ['lecture refusée — droits ou schéma non exposé',
+             'read refused — privileges or schema not exposed'],
+    echec:  ['échec de la requête', 'query failed'],
+  };
+  return (
+    <section className="rounded-lg p-4 text-sm"
+             style={{ border: `1px solid ${partial ? GOLD : LINE}`, color: INK, background: partial ? '#FFF4E0' : '#fff' }}>
+      <p className="font-semibold">
+        {partial
+          ? (fr ? 'Cet écran est incomplet.' : 'This screen is incomplete.')
+          : (fr ? 'Cet écran n’a pas pu être affiché.' : 'This screen could not be displayed.')}
+      </p>
+      <p className="mt-1" style={{ color: MUTED }}>
+        {partial
+          ? (fr
+              ? 'Une partie des lectures a échoué. Les chiffres affichés restent justes, mais ce qui manque ci-dessous manque par panne, pas par absence de donnée.'
+              : 'Some reads failed. The figures shown remain correct, but what is missing below is missing through failure, not through absent data.')
+          : (fr
+              ? 'Ce n’est pas un constat sur les données : c’est une panne de lecture. Ce que le corpus contient reste inconnu depuis cette page.'
+              : 'This is not a statement about the data: it is a read failure. What the corpus holds is unknown from this page.')}
+      </p>
+      {faults.length === 0 ? (
+        <p className="mt-3" style={{ color: MUTED }}>
+          {fr ? 'Aucune cause remontée — vérifier les journaux du serveur.' : 'No cause reported — check the server logs.'}
+        </p>
+      ) : (
+        <ul className="mt-3 space-y-1">
+          {faults.map((f, i) => (
+            <li key={`${f.object}-${i}`} style={{ color: MUTED }}>
+              <code style={{ color: INK }}>{f.object}</code> — {say[f.kind]?.[fr ? 0 : 1] ?? f.kind}
+              <span className="block text-[11px] opacity-70">{f.detail}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
 }

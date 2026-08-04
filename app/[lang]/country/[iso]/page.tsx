@@ -10,8 +10,8 @@
  */
 import { notFound } from 'next/navigation';
 import { isLang, t, type Lang } from '@/lib/i18n';
-import { getCountryProfile, getCountryQuality, getGridCountries } from '@/lib/queries';
-import { CountBar, Empty, MethodBanner, Note, Section, Stat, num } from '@/app/ui';
+import { faults, getCountryProfile, getCountryQuality, getGridCountries } from '@/lib/queries';
+import { CountBar, Empty, MethodBanner, Note, Section, Stat, num, Diagnostic } from '@/app/ui';
 import { GOLD, INK, LINE, MUTED } from '@/lib/theme';
 
 export const revalidate = 900;
@@ -23,7 +23,7 @@ export default async function Country({ params }: { params: Promise<{ lang: stri
   const ISO = iso.toUpperCase();
 
   const rows = await getCountryProfile(ISO);
-  if (!rows) return <Empty>migrations/020_public_api.sql non appliquée.</Empty>;
+  if (!rows) return <Diagnostic lang={L} faults={faults()} />;
   if (rows.length === 0) return <Empty>{t(L, 'no_data')}</Empty>;
 
   const country = rows[0]!.country;

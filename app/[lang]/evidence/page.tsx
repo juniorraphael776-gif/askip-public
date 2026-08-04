@@ -12,8 +12,8 @@
  */
 import { notFound } from 'next/navigation';
 import { isLang, t, type Lang } from '@/lib/i18n';
-import { getSearchFacets, searchEvidence } from '@/lib/queries';
-import { Empty, MethodBanner, Note, Section, num } from '@/app/ui';
+import { faults, getSearchFacets, searchEvidence } from '@/lib/queries';
+import { Empty, MethodBanner, Note, Section, num, Diagnostic } from '@/app/ui';
 import { GOLD, INK, LINE, MUTED, SECTION_TINT } from '@/lib/theme';
 
 export const revalidate = 300;
@@ -40,7 +40,7 @@ export default async function Explorer({
     getSearchFacets(),
   ]);
 
-  if (!rows) return <Empty>migrations/020 et 023 non appliquées.</Empty>;
+  if (!rows) return <Diagnostic lang={L} faults={faults()} />;
   const total = rows.length ? Number(rows[0]!.total_count) : 0;
   const pages = Math.max(1, Math.ceil(total / size));
   const qs = (over: Record<string, string | number | undefined>) => {
