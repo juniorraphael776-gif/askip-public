@@ -13,6 +13,7 @@ import { isLang, t, type Lang } from '@/lib/i18n';
 import { faults, getCountryProfile, getCountryQuality, getGridCountries, getReferentialCoverage } from '@/lib/queries';
 import { CountBar, Empty, MethodBanner, Note, Section, Stat, num, Diagnostic } from '@/app/ui';
 import { GOLD, INK, LINE, MUTED } from '@/lib/theme';
+import { CountsDropNotice } from '@/app/notice';
 
 export const revalidate = 900;
 
@@ -71,6 +72,8 @@ export default async function Country({ params }: { params: Promise<{ lang: stri
           </Note>
         </Section>
       ) : null}
+      <CountsDropNotice lang={L} />
+
 
       <Section title={L === 'fr' ? 'Maladies documentées' : 'Documented diseases'} hint={t(L, 'activity_axis')}>
         {rows.map((r) => (

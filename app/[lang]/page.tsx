@@ -11,6 +11,7 @@ import { isLang, t, type Lang } from '@/lib/i18n';
 import { getCountryTotals, getDiseaseTotals, getCoverageReach, getFreshness, getOverview, getTimeline } from '@/lib/queries';
 import { CountBar, Empty, Freshness, KeyFact, MethodBanner, Note, Section, Stat, Tier, YearBars, num } from '@/app/ui';
 import { GOLD, INK, LINE, MUTED } from '@/lib/theme';
+import { CountsDropNotice } from '@/app/notice';
 
 export const revalidate = 900;   // portail public : contenu identique pour tous
 
@@ -75,6 +76,8 @@ export default async function Overview({ params }: { params: Promise<{ lang: str
         <Stat label={t(L, 'kpi_publications')} value={num(o.publications, L)} hint={`${num(o.publications_with_doi, L)} DOI`} />
         <Stat label={t(L, 'kpi_researchers')} value={num(o.researchers, L)} />
       </section>
+      <CountsDropNotice lang={L} />
+
 
       <Section title={t(L, 'by_country')} hint={`${t(L, 'activity_axis')} · ${t(L, 'gold_tier')}`}>
         {(countries ?? []).map((c) => (
