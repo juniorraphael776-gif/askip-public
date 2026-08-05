@@ -1,11 +1,19 @@
 /**
  * ASKIP public — lectures.
  *
- * RÈGLE UNIQUE ET NON NÉGOCIABLE : ces fonctions renvoient des COMPTES
- * d'observations. Aucune ne calcule de moyenne, de médiane ou de somme de
- * numeric_value. Le type de mesure d'une valeur est inconnu (9 % seulement des
- * valeurs en '%' sont de vraies prévalences), donc toute agrégation de valeurs
- * produirait un chiffre faux d'apparence crédible.
+ * RÈGLE : ces fonctions renvoient des COMPTES d'observations. Le type de mesure d'une
+ * valeur était inconnu — 9 % seulement des valeurs en '%' sont de vraies prévalences —
+ * donc toute agrégation produisait un chiffre faux d'apparence crédible.
+ *
+ * UNE SEULE EXCEPTION, et elle est conditionnelle : `getBurdenCanonical` expose une
+ * médiane. Elle est légitime parce que `burden_canonical` filtre sur
+ * `measure_type = 'prevalence_incidence'` ET `measure_subject = 'disease'`, ce qui a
+ * produit l'homogénéité d'unité — toutes les observations retenues sont en '%'. La vue
+ * porte `n_units` pour que cette condition reste vérifiable : dès qu'elle dépasse 1,
+ * la médiane n'a plus de référent et l'écran doit cesser de l'afficher.
+ *
+ * La règle n'a donc pas été assouplie : la condition qui la justifiait a cessé d'être
+ * vraie sur ce périmètre, et elle reste vraie partout ailleurs.
  *
  * Toutes les vues lues vivent dans le schéma public_api (migration 020).
  */
@@ -238,3 +246,30 @@ export const getScopeReach = () =>
 export const getUnlocatedBySection = () =>
   safe<{ section: string; evidences_unlocated: number; evidences_total: number }[]>('unlocated_by_section', () =>
     db.from('unlocated_by_section').select('*'));
+
+/* ------------------------------------------------------------------ */
+/* Charge de morbidité — la seule surface où une VALEUR est agrégée    */
+/* ------------------------------------------------------------------ */
+
+export interface BurdenRow {
+  iso: string; country: string; disease: string;
+  n_observations: number; n_evidences: number;
+  median_pct: number | null; n_units: number;
+  first_year: number | null; last_year: number | null;
+  n_dated: number; n_inherited: number; n_from_author: number;
+}
+
+/**
+ * `burden_canonical` — charge filtrée sur `prevalence_incidence × disease` ET
+ * restreinte aux concepts du référentiel PAR JOINTURE EN BASE (migration 040).
+ *
+ * Aucune liste de canoniques n'est recopiée ici, et c'est la raison d'être de la 040 :
+ * la même liste dans deux dépôts finit par diverger sans que rien ne le signale. Le
+ * portail ne sait pas ce qu'est un concept canonique, il lit une vue qui le sait.
+ *
+ * La vue rend ZÉRO ligne si le référentiel n'est pas chargé en base. C'est voulu :
+ * une carte vide se remarque, une carte silencieusement non filtrée ne se remarque pas.
+ */
+export const getBurdenCanonical = () =>
+  safe<BurdenRow[]>('burden_canonical', () =>
+    db.from('burden_canonical').select('*').order('n_observations', { ascending: false }));

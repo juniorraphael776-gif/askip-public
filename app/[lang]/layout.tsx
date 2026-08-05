@@ -21,6 +21,7 @@ export default async function LangLayout({
           <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm" style={{ color: MUTED }}>
             <a href={`/${L}`} className="hover:underline">{t(L, 'nav_overview')}</a>
             {/* Lien permanent vers les manques : c'est la question qu'on ne pense pas à poser. */}
+            <a href={`/${L}/burden`} className="hover:underline">{t(L, 'nav_burden')}</a>
             <a href={`/${L}/gaps`} className="hover:underline">{t(L, 'nav_gaps')}</a>
             <a href={`/${L}/evidence`} className="hover:underline">{t(L, 'nav_explorer')}</a>
             <a href={`/${L}/researchers`} className="hover:underline">{t(L, 'nav_researchers')}</a>
