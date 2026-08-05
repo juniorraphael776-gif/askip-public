@@ -27,12 +27,30 @@ export interface OverviewCounts {
   evidences_fr: number; evidences_en: number;
 }
 
-export interface CountryTotal { country: string; iso: string | null; observations: number; diseases_documented: number }
-export interface DiseaseTotal { disease: string; observations: number; countries_documented: number }
+export interface CountryTotal {
+  country: string; iso: string | null; observations: number; diseases_documented: number;
+  observations_in_referential: number; diseases_in_referential: number;
+}
+export interface DiseaseTotal {
+  disease: string; in_referential: boolean; observations: number; countries_documented: number;
+}
 export interface TimelinePoint { year: number; observations: number }
+/**
+ * Contrat de la migration 043. `disease_is_normalized` a DISPARU — c'était le test faux,
+ * qui rendait « normalisé » sur des libellés absents du vocabulaire. `in_referential` le
+ * remplace, et il répond à la question posée.
+ *
+ * ⚠️ La colonne s'appelle `observations` ici et `n_observations` dans `burden_scoped` :
+ * le nom change entre la vue interne et la vue exposée. Écrire l'un pour l'autre ne
+ * lèverait pas d'erreur — le champ serait simplement `undefined`, donc `NaN` à l'écran.
+ */
 export interface CountryProfileRow {
-  country: string; iso: string | null; disease: string; observations: number;
-  years: number[] | null; has_inherited_location: boolean; disease_is_normalized: boolean;
+  country: string; iso: string | null; disease: string;
+  observations: number; n_evidences: number;
+  median_pct: number | null; n_units: number;
+  first_year: number | null; last_year: number | null; n_dated: number;
+  n_inherited: number; n_from_author: number;
+  in_referential: boolean;
 }
 export interface CountryQuality {
   country: string; observations: number; dated: number; location_inherited: number;
