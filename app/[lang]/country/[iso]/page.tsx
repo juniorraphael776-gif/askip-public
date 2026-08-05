@@ -10,7 +10,7 @@
  */
 import { notFound } from 'next/navigation';
 import { isLang, t, type Lang } from '@/lib/i18n';
-import { faults, getCountryProfile, getCountryQuality, getGridCountries } from '@/lib/queries';
+import { faults, getCountryProfile, getCountryQuality, getGridCountries, getReferentialCoverage } from '@/lib/queries';
 import { CountBar, Empty, MethodBanner, Note, Section, Stat, num, Diagnostic } from '@/app/ui';
 import { GOLD, INK, LINE, MUTED } from '@/lib/theme';
 
@@ -27,7 +27,9 @@ export default async function Country({ params }: { params: Promise<{ lang: stri
   if (rows.length === 0) return <Empty>{t(L, 'no_data')}</Empty>;
 
   const country = rows[0]!.country;
-  const [quality, gridCountries] = await Promise.all([getCountryQuality(country), getGridCountries()]);
+  const [quality, gridCountries, coverage] = await Promise.all([
+    getCountryQuality(country), getGridCountries(), getReferentialCoverage(),
+  ]);
 
   const total = rows.reduce((s, r) => s + r.observations, 0);
   const maxD = Math.max(1, ...rows.map((r) => r.observations));
@@ -101,15 +103,26 @@ export default async function Country({ params }: { params: Promise<{ lang: stri
             Un affichage silencieux et un affichage qui garantit sont indistinguables
             pour un lecteur : il faut donc dire ce que le silence ne couvre pas.
 
-            AUCUN CHIFFRE ICI, DÉLIBÉRÉMENT. La première version portait « 10 681 sur
-            47 752 », tapé à la main. Il aurait été juste au moment de l'écriture et faux
-            au premier rechargement d'entités — la note aurait alors commis exactement le
-            défaut qu'elle corrige, un cran plus loin. Le chiffre revient le jour où le
-            test d'appartenance vit en base et peut être lu, pas recopié. */}
+            TROISIÈME VERSION DE CETTE PHRASE, ET LA PREMIÈRE QUI SOIT VRAIE.
+            La première portait « 10 681 sur 47 752 » tapé à la main : juste à l'écriture,
+            périmable au premier rechargement d'entités. La deuxième disait que le chiffre
+            n'était pas calculable — vrai à ce moment-là, faux dès la migration 040.
+            Celle-ci le LIT depuis public_api.referential_coverage.
+
+            La version du référentiel est rendue avec le chiffre : une part n'a de sens
+            que rapportée à ce contre quoi elle a été mesurée. Un lecteur qui voit 22 %
+            doit pouvoir savoir que c'est contre v3.7 et non contre une v4 plus large.
+
+            Si la vue est illisible, la note dit que la part n'a pas pu être lue — elle
+            ne retombe pas sur une valeur par défaut. */}
         <Note>
           {L === 'fr'
-            ? 'Une ligne sans mention signifie qu’une forme canonique a été produite pour ce libellé — pas qu’elle appartient au vocabulaire de référence. Une part notable du corpus porte un libellé hors des concepts de référence : le même paludisme peut y figurer sous plusieurs écritures. La part exacte n’est pas affichée ici parce qu’elle n’est pas encore calculable en base, et un chiffre recopié à la main deviendrait faux au prochain chargement d’entités.'
-            : 'A row without a note means a canonical form was produced for that label — not that it belongs to the reference vocabulary. A sizeable share of the corpus carries labels outside the reference concepts: the same malaria may appear under several spellings. The exact share is not shown here because it is not yet computable in the database, and a hand-copied figure would go stale at the next entity load.'}
+            ? coverage
+              ? `Une ligne sans mention signifie qu’une forme canonique a été produite pour ce libellé — pas qu’elle appartient au vocabulaire de référence. Sur l’ensemble du corpus, ${num(coverage.observations_out_of_referential, L)} observations de maladie sur ${num(coverage.observations_disease, L)} portent un libellé absent des ${num(coverage.concepts_in_referential, L)} concepts de référence, soit ${Math.round((coverage.observations_out_of_referential / Math.max(1, coverage.observations_disease)) * 100)} % : le même paludisme peut y figurer sous plusieurs écritures. Mesuré contre le référentiel ${coverage.referential_version}.`
+              : 'Une ligne sans mention signifie qu’une forme canonique a été produite pour ce libellé — pas qu’elle appartient au vocabulaire de référence. La part du corpus concernée n’a pas pu être lue.'
+            : coverage
+              ? `A row without a note means a canonical form was produced for that label — not that it belongs to the reference vocabulary. Across the corpus, ${num(coverage.observations_out_of_referential, L)} disease observations out of ${num(coverage.observations_disease, L)} carry a label absent from the ${num(coverage.concepts_in_referential, L)} reference concepts, i.e. ${Math.round((coverage.observations_out_of_referential / Math.max(1, coverage.observations_disease)) * 100)}%: the same malaria may appear under several spellings. Measured against referential ${coverage.referential_version}.`
+              : 'A row without a note means a canonical form was produced for that label — not that it belongs to the reference vocabulary. The share of the corpus concerned could not be read.'}
         </Note>
       </Section>
 

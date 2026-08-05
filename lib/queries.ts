@@ -273,3 +273,24 @@ export interface BurdenRow {
 export const getBurdenCanonical = () =>
   safe<BurdenRow[]>('burden_canonical', () =>
     db.from('burden_canonical').select('*').order('n_observations', { ascending: false }));
+
+export interface ReferentialCoverage {
+  observations_disease: number;
+  observations_in_referential: number;
+  observations_out_of_referential: number;
+  concepts_in_referential: number;
+  referential_version: string;
+}
+
+/**
+ * Part du corpus portant un libellé hors du vocabulaire de référence.
+ *
+ * Cette vue existe pour qu'un chiffre publié soit LU et non recopié. La note du profil
+ * pays a porté trois formulations : un chiffre tapé à la main — juste à l'écriture,
+ * périmable au premier rechargement d'entités —, puis l'aveu qu'il n'était pas
+ * calculable, et enfin celle-ci. La version du référentiel est rendue avec le chiffre :
+ * une part n'a de sens que rapportée à ce contre quoi elle a été mesurée.
+ */
+export const getReferentialCoverage = () =>
+  safe<ReferentialCoverage[]>('referential_coverage', () =>
+    db.from('referential_coverage').select('*').limit(1)).then((r) => r?.[0] ?? null);
