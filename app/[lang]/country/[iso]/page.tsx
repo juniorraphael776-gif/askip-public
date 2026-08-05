@@ -99,11 +99,17 @@ export default async function Country({ params }: { params: Promise<{ lang: stri
         </Note>
         {/* L'ABSENCE de mention ne certifie rien, et c'est ce qu'il faut écrire.
             Un affichage silencieux et un affichage qui garantit sont indistinguables
-            pour un lecteur : il faut donc dire ce que le silence ne couvre pas. */}
+            pour un lecteur : il faut donc dire ce que le silence ne couvre pas.
+
+            AUCUN CHIFFRE ICI, DÉLIBÉRÉMENT. La première version portait « 10 681 sur
+            47 752 », tapé à la main. Il aurait été juste au moment de l'écriture et faux
+            au premier rechargement d'entités — la note aurait alors commis exactement le
+            défaut qu'elle corrige, un cran plus loin. Le chiffre revient le jour où le
+            test d'appartenance vit en base et peut être lu, pas recopié. */}
         <Note>
           {L === 'fr'
-            ? 'Une ligne sans mention signifie qu’une forme canonique a été produite pour ce libellé — pas qu’elle appartient au vocabulaire de référence. Sur l’ensemble du corpus, 10 681 observations sur 47 752 portent un libellé hors des 70 concepts de référence : le même paludisme peut y figurer sous plusieurs écritures.'
-            : 'A row without a note means a canonical form was produced for that label — not that it belongs to the reference vocabulary. Across the corpus, 10,681 observations out of 47,752 carry a label outside the 70 reference concepts: the same malaria may appear under several spellings.'}
+            ? 'Une ligne sans mention signifie qu’une forme canonique a été produite pour ce libellé — pas qu’elle appartient au vocabulaire de référence. Une part notable du corpus porte un libellé hors des concepts de référence : le même paludisme peut y figurer sous plusieurs écritures. La part exacte n’est pas affichée ici parce qu’elle n’est pas encore calculable en base, et un chiffre recopié à la main deviendrait faux au prochain chargement d’entités.'
+            : 'A row without a note means a canonical form was produced for that label — not that it belongs to the reference vocabulary. A sizeable share of the corpus carries labels outside the reference concepts: the same malaria may appear under several spellings. The exact share is not shown here because it is not yet computable in the database, and a hand-copied figure would go stale at the next entity load.'}
         </Note>
       </Section>
 
