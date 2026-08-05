@@ -78,7 +78,16 @@ export default async function Country({ params }: { params: Promise<{ lang: stri
             {r.has_inherited_location || !r.disease_is_normalized ? (
               <div className="mb-1 pl-1 text-[11px]" style={{ color: MUTED }}>
                 {r.has_inherited_location ? (L === 'fr' ? '· localisation partiellement héritée' : '· partly inherited location') : ''}
-                {!r.disease_is_normalized ? (L === 'fr' ? ' · libellé non normalisé' : ' · non-normalised label') : ''}
+                {/* Ce drapeau teste UNIQUEMENT la présence d'une forme canonique produite
+                    par la passe de normalisation. Il ne dit RIEN de son appartenance au
+                    vocabulaire de référence. « libellé non normalisé » laissait entendre
+                    que son absence certifiait un libellé de référence — ce qu'elle ne fait
+                    pas, et 10 681 observations sur 47 752 portent un libellé hors des 70
+                    concepts canoniques tout en étant marquées normalisées. */}
+                {!r.disease_is_normalized
+                  ? (L === 'fr' ? ' · libellé brut, aucune forme canonique produite'
+                                : ' · raw label, no canonical form produced')
+                  : ''}
               </div>
             ) : null}
           </div>
@@ -87,6 +96,14 @@ export default async function Country({ params }: { params: Promise<{ lang: stri
           {L === 'fr'
             ? 'Classement par volume de documentation, pas par fréquence de la maladie. Cliquer une ligne ouvre les evidences correspondantes, avec leur source.'
             : 'Ranked by documentation volume, not by disease frequency. Click a row to open the underlying evidence with its source.'}
+        </Note>
+        {/* L'ABSENCE de mention ne certifie rien, et c'est ce qu'il faut écrire.
+            Un affichage silencieux et un affichage qui garantit sont indistinguables
+            pour un lecteur : il faut donc dire ce que le silence ne couvre pas. */}
+        <Note>
+          {L === 'fr'
+            ? 'Une ligne sans mention signifie qu’une forme canonique a été produite pour ce libellé — pas qu’elle appartient au vocabulaire de référence. Sur l’ensemble du corpus, 10 681 observations sur 47 752 portent un libellé hors des 70 concepts de référence : le même paludisme peut y figurer sous plusieurs écritures.'
+            : 'A row without a note means a canonical form was produced for that label — not that it belongs to the reference vocabulary. Across the corpus, 10,681 observations out of 47,752 carry a label outside the 70 reference concepts: the same malaria may appear under several spellings.'}
         </Note>
       </Section>
 

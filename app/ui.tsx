@@ -114,6 +114,50 @@ export function Empty({ children }: { children: ReactNode }) {
 }
 
 /**
+ * Âge des chiffres, en toutes lettres.
+ *
+ * Ce portail ne sert pas des données en direct : tout vient d'agrégats matérialisés,
+ * figés jusqu'au prochain `refresh_burden_view()`. L'âge se disait par une COULEUR —
+ * la date passait au rouge au-delà de sept jours. Une couleur ne dit rien : un lecteur
+ * voit une date rouge sans savoir qu'elle signifie « ces chiffres ont plus d'une
+ * semaine ». Le même défaut que tous les autres corrigés ici — le signal existait,
+ * il n'était pas lisible.
+ *
+ * La phrase accuse le rafraîchissement, jamais le portail : ce n'est pas l'écran qui
+ * est en retard, c'est l'opération qui n'a pas été lancée.
+ */
+export function Freshness({ lang, at, isStale, suffix }: {
+  lang: Lang; at: string; isStale: boolean; suffix?: ReactNode;
+}) {
+  const fr = lang === 'fr';
+  const day = 86_400_000;
+  const days = Math.max(0, Math.floor((Date.now() - new Date(at).getTime()) / day));
+  const date = new Date(at).toLocaleDateString(fr ? 'fr-FR' : 'en-US', {
+    day: 'numeric', month: 'long', year: 'numeric',
+  });
+  const age = fr
+    ? (days === 0 ? "aujourd'hui" : days === 1 ? 'hier' : `il y a ${days} jours`)
+    : (days === 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`);
+
+  return (
+    <p className="mb-4 text-[12px] leading-relaxed"
+       style={{ color: isStale ? '#B04A2F' : MUTED }}>
+      {fr
+        ? <>Ces chiffres datent du <strong>{date}</strong> ({age}).</>
+        : <>These figures date from <strong>{date}</strong> ({age}).</>}
+      {isStale
+        ? (fr
+            ? ' Ils ont plus d’une semaine : le rafraîchissement des agrégats n’a pas été lancé depuis. Ce n’est pas le portail qui est en retard, ce sont les données qu’il sert.'
+            : ' They are more than a week old: the aggregate refresh has not been run since. It is not the portal that is behind, it is the data it serves.')
+        : (fr
+            ? ' Le portail sert des agrégats figés, pas des données en direct.'
+            : ' The portal serves frozen aggregates, not live data.')}
+      {suffix ? <> {suffix}</> : null}
+    </p>
+  );
+}
+
+/**
  * Panne de lecture, nommée par sa vraie cause.
  *
  * Cet écran affichait « migrations/020 et 021 non appliquées » quelle que soit la

@@ -9,7 +9,7 @@
 import { notFound } from 'next/navigation';
 import { isLang, t, type Lang } from '@/lib/i18n';
 import { getCountryTotals, getDiseaseTotals, getCoverageReach, getFreshness, getOverview, getTimeline } from '@/lib/queries';
-import { CountBar, Empty, KeyFact, MethodBanner, Note, Section, Stat, Tier, YearBars, num } from '@/app/ui';
+import { CountBar, Empty, Freshness, KeyFact, MethodBanner, Note, Section, Stat, Tier, YearBars, num } from '@/app/ui';
 import { GOLD, INK, LINE, MUTED } from '@/lib/theme';
 
 export const revalidate = 900;   // portail public : contenu identique pour tous
@@ -122,9 +122,8 @@ export default async function Overview({ params }: { params: Promise<{ lang: str
       </Section>
 
       {freshness ? (
-        <p className="mb-4 text-[12px]" style={{ color: freshness.is_stale ? '#B04A2F' : MUTED }}>
-          {t(L, 'generated')} {freshness.generated_at.slice(0, 10)} · {num(freshness.observations ?? 0, L)} {t(L, 'observations')} {L === 'fr' ? 'rattachées à un pays' : 'attached to a country'}
-        </p>
+        <Freshness lang={L} at={freshness.generated_at} isStale={freshness.is_stale}
+                   suffix={`${num(freshness.observations ?? 0, L)} ${t(L, 'observations')} ${L === 'fr' ? 'rattachées à un pays.' : 'attached to a country.'}`} />
       ) : null}
 
       <p className="text-[12px]" style={{ color: MUTED }}>

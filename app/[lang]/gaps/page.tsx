@@ -21,7 +21,7 @@
 import { notFound } from 'next/navigation';
 import { isLang, t, type Lang } from '@/lib/i18n';
 import { faults, getAllCountryQuality, getCoverageReach, getFreshness, getGaps, getIndicators, getOverview, getScopeReach, getTopicReach, getUnlocatedBySection, type GapCell, type GapSection, type GapState } from '@/lib/queries';
-import { Empty, KeyFact, MethodBanner, Note, Section, num, Diagnostic } from '@/app/ui';
+import { Diagnostic, Empty, Freshness, KeyFact, MethodBanner, Note, Section, num } from '@/app/ui';
 import { GAP_STATE, GOLD, INK, LINE, MUTED } from '@/lib/theme';
 
 export const revalidate = 900;
@@ -123,12 +123,7 @@ export default async function Gaps({ params }: { params: Promise<{ lang: string 
       } />
 
       {freshness ? (
-        <p className="mb-6 text-[12px]" style={{ color: freshness.is_stale ? '#B04A2F' : MUTED }}>
-          {t(L, 'generated')} {freshness.generated_at.slice(0, 10)}
-          {freshness.is_stale
-            ? (L === 'fr' ? ' — données de plus de sept jours, un rafraîchissement est dû.' : ' — data older than seven days, a refresh is due.')
-            : ''}
-        </p>
+        <Freshness lang={L} at={freshness.generated_at} isStale={freshness.is_stale} />
       ) : null}
 
       {/* ---------- Onglet 1 : COUVERTURE ---------- */}
