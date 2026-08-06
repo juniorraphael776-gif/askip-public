@@ -12,6 +12,7 @@ import { getCountryTotals, getDiseaseTotals, getCoverageReach, getFreshness, get
 import { CountBar, Empty, Freshness, KeyFact, MethodBanner, Note, Section, Stat, Tier, YearBars, num } from '@/app/ui';
 import { GOLD, INK, LINE, MUTED } from '@/lib/theme';
 import { CountsDropNotice } from '@/app/notice';
+import { ValidationTierNotice } from '@/app/notice-validation';
 
 export const revalidate = 900;   // portail public : contenu identique pour tous
 
@@ -76,6 +77,7 @@ export default async function Overview({ params }: { params: Promise<{ lang: str
         <Stat label={t(L, 'kpi_publications')} value={num(o.publications, L)} hint={`${num(o.publications_with_doi, L)} DOI`} />
         <Stat label={t(L, 'kpi_researchers')} value={num(o.researchers, L)} />
       </section>
+      <ValidationTierNotice lang={L} />
       <CountsDropNotice lang={L} />
 
 

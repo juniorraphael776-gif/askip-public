@@ -14,6 +14,7 @@ import { faults, getCountryProfile, getCountryQuality, getGridCountries, getRefe
 import { CountBar, Empty, MethodBanner, Note, Section, Stat, num, Diagnostic } from '@/app/ui';
 import { GOLD, INK, LINE, MUTED } from '@/lib/theme';
 import { CountsDropNotice } from '@/app/notice';
+import { ValidationTierNotice } from '@/app/notice-validation';
 
 export const revalidate = 900;
 
@@ -79,6 +80,7 @@ export default async function Country({ params }: { params: Promise<{ lang: stri
           </Note>
         </Section>
       ) : null}
+      <ValidationTierNotice lang={L} />
       <CountsDropNotice lang={L} />
 
 

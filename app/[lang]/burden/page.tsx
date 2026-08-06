@@ -21,6 +21,7 @@ import { isLang, t, type Lang } from '@/lib/i18n';
 import { faults, getBurdenCanonical, getFreshness } from '@/lib/queries';
 import { CountBar, Diagnostic, Empty, Freshness, MethodBanner, Note, Section, Stat, num } from '@/app/ui';
 import { GOLD, INK, LINE, MUTED } from '@/lib/theme';
+import { ValidationTierNotice } from '@/app/notice-validation';
 
 export const revalidate = 900;
 
@@ -84,6 +85,8 @@ export default async function Burden({ params }: { params: Promise<{ lang: strin
           ? 'Ces cartes disent où la recherche se fait, autant que où la maladie est. Le pays d’une observation vient soit du texte de l’étude, soit d’un rattachement déduit — indexation MeSH, contexte du document, ou affiliation des auteurs. Cette dernière est la moins sûre. Chaque cellule affiche le rapport exact : un pays très présent ici est un pays où l’on publie, pas nécessairement un pays plus touché.'
           : 'These maps show where research happens as much as where disease is. A country comes either from the study text or from an inferred link — MeSH indexing, document context, or author affiliation. The last is the least reliable. Each cell shows the exact ratio: a country that stands out here is one that publishes, not necessarily one that is more affected.'
       } />
+
+      <ValidationTierNotice lang={L} countries={countries} />
 
       <section className="mb-10 grid grid-cols-2 gap-3 md:grid-cols-4">
         <Stat label={fr ? 'Couples pays × maladie' : 'Country × disease pairs'} value={num(rows.length, L)} />
