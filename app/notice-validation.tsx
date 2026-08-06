@@ -12,9 +12,21 @@
  * même lecture.
  *
  * Le premier fait énoncé est qu'AUCUN PAYS NE DISPARAÎT — 39 avant, 39 après. C'est
- * la question qu'un lecteur de carte se pose en premier, et le composant refuse de
- * s'afficher si le compte descend sous 39 : une note qui rassure sur un fait devenu
- * faux serait pire que pas de note.
+ * la question qu'un lecteur de carte se pose en premier.
+ *
+ * ── IL N'Y A PAS DE GARDE SUR CE CHIFFRE, ET C'EST ÉCRIT ICI POUR QU'ON LE SACHE ──
+ * Une première version refusait d'afficher la note si le compte de pays descendait
+ * sous 39. Elle ne protégeait que `/burden`, seul écran où ce compte est calculé :
+ * l'accueil ne dispose que des douze premiers pays, le profil pays d'aucun total.
+ * Deux écrans sur trois auraient donc continué d'affirmer le contraire.
+ *
+ * Une garde partielle qu'on croira générale est pire que pas de garde. Elle a été
+ * retirée plutôt qu'étendue : payer une lecture supplémentaire sur deux écrans pour
+ * surveiller un fait stable était disproportionné.
+ *
+ * À la place, le chiffre est DATÉ dans le texte. Un lecteur de 2027 verra « mesuré le
+ * 6 août 2026 » et saura que c'est un relevé, pas une propriété permanente du corpus.
+ * C'est le seul écart au verbatim du poste noyau, fait sur instruction.
  *
  * Trois choses ne sont PAS mentionnées, délibérément : le chiffre de 405 — celui de la
  * carte au référentiel, quand le lecteur verra bouger 457 —, et deux défauts connus
@@ -24,13 +36,8 @@
 import type { Lang } from '@/lib/i18n';
 import { GOLD, INK, LINE } from '@/lib/theme';
 
-export function ValidationTierNotice({ lang, countries }: { lang: Lang; countries?: number }) {
+export function ValidationTierNotice({ lang }: { lang: Lang }) {
   const fr = lang === 'fr';
-
-  // GARDE : la note affirme que les 39 pays restent. Si ce n'est plus vrai, elle ne
-  // s'affiche pas — mieux vaut aucune note qu'une note qui rassure à tort.
-  if (countries !== undefined && countries < 39) return null;
-
   return (
     <aside
       className="mb-10 rounded-lg p-5 text-[13px] leading-relaxed"
@@ -70,8 +77,8 @@ export function ValidationTierNotice({ lang, countries }: { lang: Lang; countrie
       <p className="mb-2">
         <strong>{fr ? 'Aucun pays ne disparaît.' : 'No country disappears.'}</strong>{' '}
         {fr
-          ? 'Les 39 pays documentés le restent. 24 couples pays × maladie cessent d’être affichés, faute d’une observation validée pour les soutenir.'
-          : 'All 39 documented countries remain. 24 country × disease pairs stop being displayed, for want of a validated observation to support them.'}
+          ? 'Les 39 pays documentés le restent — 39 avant, 39 après, mesuré le 6 août 2026. 24 couples pays × maladie cessent d’être affichés, faute d’une observation validée pour les soutenir.'
+          : 'All 39 documented countries remain — 39 before, 39 after, measured on 6 August 2026. 24 country × disease pairs stop being displayed, for want of a validated observation to support them.'}
       </p>
 
       <p className="mb-2">

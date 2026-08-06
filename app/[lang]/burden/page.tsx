@@ -86,7 +86,7 @@ export default async function Burden({ params }: { params: Promise<{ lang: strin
           : 'These maps show where research happens as much as where disease is. A country comes either from the study text or from an inferred link — MeSH indexing, document context, or author affiliation. The last is the least reliable. Each cell shows the exact ratio: a country that stands out here is one that publishes, not necessarily one that is more affected.'
       } />
 
-      <ValidationTierNotice lang={L} countries={countries} />
+      <ValidationTierNotice lang={L} />
 
       <section className="mb-10 grid grid-cols-2 gap-3 md:grid-cols-4">
         <Stat label={fr ? 'Couples pays × maladie' : 'Country × disease pairs'} value={num(rows.length, L)} />
