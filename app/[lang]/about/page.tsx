@@ -103,11 +103,24 @@ export default async function About({ params }: { params: Promise<{ lang: string
             ? <><strong>Aucune relecture humaine.</strong> C’est la limite qui commande toutes les autres. « Validée » signifie ici « a franchi un contrôle automatique », jamais « vérifiée par un expert ». Une assertion peut être bien formée, plausible, correctement citée — et fausse.</>
             : <><strong>No human review.</strong> This is the limitation that governs all the others. “Validated” here means “passed an automatic check”, never “verified by an expert”. An assertion can be well-formed, plausible, correctly quoted — and wrong.</>}
         </p>
-        <p>
-          {fr
-            ? <>Les libellés de maladie sont normalisés contre un référentiel versionné — <code>{ref?.referential_version ?? '—'}</code>, {num(ref?.concepts_in_referential ?? 0, L)} concepts. {ref ? <>Il couvre <strong style={{ color: INK }}>{num(ref.observations_in_referential, L)}</strong> observations sur {num(ref.observations_disease, L)} ; les {num(ref.observations_out_of_referential, L)} restantes gardent leur libellé d’origine et sont signalées comme telles.</> : null}</>
-            : <>Disease labels are normalised against a versioned referential — <code>{ref?.referential_version ?? '—'}</code>, {num(ref?.concepts_in_referential ?? 0, L)} concepts. {ref ? <>It covers <strong style={{ color: INK }}>{num(ref.observations_in_referential, L)}</strong> observations of {num(ref.observations_disease, L)}; the remaining {num(ref.observations_out_of_referential, L)} keep their original label and are flagged as such.</> : null}</>}
-        </p>
+        {/* ⚠️ SANS `ref`, CETTE PHRASE NE DOIT PAS S'ÉCRIRE AVEC DES ZÉROS.
+            Publiée une première fois en `?? '—'` et `?? 0`, elle affichait
+            « un référentiel versionné — —, 0 concepts » quand la vue expirait : un
+            lecteur y lit un référentiel vide, c'est-à-dire un fait, alors que c'est
+            une panne. Le zéro affirme ; l'absence annoncée n'affirme rien. */}
+        {ref ? (
+          <p>
+            {fr
+              ? <>Les libellés de maladie sont normalisés contre un référentiel versionné — <code>{ref.referential_version}</code>, {num(ref.concepts_in_referential, L)} concepts. Il couvre <strong style={{ color: INK }}>{num(ref.observations_in_referential, L)}</strong> observations sur {num(ref.observations_disease, L)} ; les {num(ref.observations_out_of_referential, L)} restantes gardent leur libellé d’origine et sont signalées comme telles.</>
+              : <>Disease labels are normalised against a versioned referential — <code>{ref.referential_version}</code>, {num(ref.concepts_in_referential, L)} concepts. It covers <strong style={{ color: INK }}>{num(ref.observations_in_referential, L)}</strong> observations of {num(ref.observations_disease, L)}; the remaining {num(ref.observations_out_of_referential, L)} keep their original label and are flagged as such.</>}
+          </p>
+        ) : (
+          <p style={{ color: '#8C3A2E' }}>
+            {fr
+              ? 'Les libellés de maladie sont normalisés contre un référentiel versionné, mais sa version et sa couverture n’ont pas pu être lues : la requête a dépassé le délai serveur. Le référentiel existe et s’applique — ce sont ses chiffres qui manquent ici, pas le référentiel.'
+              : 'Disease labels are normalised against a versioned referential, but its version and coverage could not be read: the query exceeded the server timeout. The referential exists and applies — it is its figures that are missing here, not the referential itself.'}
+          </p>
+        )}
       </Bloc>
 
       <Bloc titre={fr ? 'Ce que le corpus ne sait pas' : 'What the corpus does not know'}>
@@ -141,7 +154,7 @@ export default async function About({ params }: { params: Promise<{ lang: string
 
         <Limite
           titre={fr ? 'La chaîne chercheur → publication → evidence est partielle' : 'The researcher → publication → evidence chain is partial'}
-          chiffre="22,4 %"
+          chiffre={fr ? '22,4 %' : '22.4%'}
         >
           {fr
             ? <>Seule une evidence sur quatre environ peut être remontée jusqu’à un auteur identifié. Les <strong style={{ color: INK }}>{num(o.researchers, L)}</strong> chercheurs du corpus sont donc réellement périphériques dans le graphe, et non masqués par un choix d’affichage. Ce taux nous est transmis par la chaîne d’extraction ; il n’est pas recalculé sur cette page.</>

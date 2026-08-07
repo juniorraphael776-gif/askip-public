@@ -43,9 +43,18 @@ function Champ({ cle, valeur, note }: { cle: string; valeur: React.ReactNode; no
   );
 }
 
-/** Le statut d'un chiffre. Sans lui, tout se lit comme mesuré. */
-function Statut({ k }: { k: 'compte' | 'lu' | 'transmis' }) {
-  const txt = { compte: 'COMPTÉ', lu: 'LU', transmis: 'TRANSMIS' }[k];
+/**
+ * Le statut d'un chiffre. Sans lui, tout se lit comme mesuré.
+ *
+ * ⚠️ Le badge doit parler la langue de la phrase qui l'explique. Publié une première
+ * fois avec des libellés français en dur, il affichait « LU » sur une page anglaise
+ * dont le texte annonçait « READ » — le lecteur voyait deux mots différents désigner
+ * la même chose, sur la page qui sert à établir la confiance.
+ */
+function Statut({ k, lang }: { k: 'compte' | 'lu' | 'transmis'; lang: Lang }) {
+  const txt = lang === 'fr'
+    ? { compte: 'COMPTÉ', lu: 'LU', transmis: 'TRANSMIS' }[k]
+    : { compte: 'COUNTED', lu: 'READ', transmis: 'SUPPLIED' }[k];
   const bg = { compte: '#E8F0EA', lu: '#EDEAF5', transmis: '#FBF0DC' }[k];
   return (
     <span className="ml-2 rounded px-1.5 py-0.5 text-[10px] font-bold tracking-wide"
@@ -89,10 +98,22 @@ export default async function Datasets({ params }: { params: Promise<{ lang: str
           {fr ? 'Identification' : 'Identification'}
         </h2>
         <Champ cle={fr ? 'Nom' : 'Name'} valeur="ASKIP — African Science Knowledge & Insight Platform" />
+        {/* ⚠️ UN ZÉRO AFFICHÉ EST UNE AFFIRMATION, UNE ABSENCE ANNONCÉE N'EN EST PAS
+            UNE. Quand `referential_coverage` expire — troisième chemin froid observé,
+            et le premier qui produit un CHIFFRE FAUX plutôt qu'un vide — cette ligne
+            affichait « — , 0 concepts », ce qui se lit comme un référentiel vide et
+            non comme une panne. Le bandeau de diagnostic le disait ; un lecteur qui
+            ne le lit pas voyait un fait. */}
         <Champ
           cle={fr ? 'Version du référentiel' : 'Referential version'}
-          valeur={<code>{ref?.referential_version ?? '—'}</code>}
-          note={fr ? 'vocabulaire contre lequel les libellés de maladie sont normalisés' : 'vocabulary the disease labels are normalised against'}
+          valeur={ref
+            ? <code>{ref.referential_version}</code>
+            : <span style={{ color: '#8C3A2E', fontWeight: 400 }}>
+                {fr ? 'non lue — dépassement du délai serveur' : 'not read — server timeout'}
+              </span>}
+          note={ref
+            ? (fr ? 'vocabulaire contre lequel les libellés de maladie sont normalisés' : 'vocabulary the disease labels are normalised against')
+            : (fr ? 'la version existe, elle n’a pas pu être lue à temps' : 'the version exists, it could not be read in time')}
         />
         <Champ
           cle={fr ? 'Agrégats matérialisés le' : 'Aggregates materialised on'}
@@ -130,7 +151,7 @@ export default async function Datasets({ params }: { params: Promise<{ lang: str
           <div className="mb-3 rounded-lg p-4" style={{ border: `1px solid ${GOLD}`, background: '#FFF9EE' }}>
             <p className="font-semibold" style={{ color: INK }}>
               1. {fr ? 'Près d’un tiers des observations n’a aucun pays' : 'Nearly a third of observations have no country'}
-              <Statut k="lu" />
+              <Statut k="lu" lang={L} />
             </p>
             <p className="mt-1 text-[13px]" style={{ color: INK }}>
               <strong style={{ color: GOLD }}>{num(reach.observations_unlocated, L)} / {num(reach.observations_total, L)}</strong>
@@ -148,7 +169,7 @@ export default async function Datasets({ params }: { params: Promise<{ lang: str
           <div className="mb-3 rounded-lg p-4" style={{ border: `1px solid ${GOLD}`, background: '#FFF9EE' }}>
             <p className="font-semibold" style={{ color: INK }}>
               2. {fr ? 'Deux tiers des observations n’ont aucune date exploitable' : 'Two thirds of observations have no usable date'}
-              <Statut k="compte" />
+              <Statut k="compte" lang={L} />
             </p>
             <p className="mt-1 text-[13px]" style={{ color: INK }}>
               <strong style={{ color: GOLD }}>{num(sansDate, L)} / {num(reach.observations_total, L)}</strong>
@@ -165,10 +186,10 @@ export default async function Datasets({ params }: { params: Promise<{ lang: str
         <div className="mb-3 rounded-lg p-4" style={{ border: `1px solid ${GOLD}`, background: '#FFF9EE' }}>
           <p className="font-semibold" style={{ color: INK }}>
             3. {fr ? 'Aucune relecture humaine, et la chaîne d’auteurs est partielle' : 'No human review, and the author chain is partial'}
-            <Statut k="transmis" />
+            <Statut k="transmis" lang={L} />
           </p>
           <p className="mt-1 text-[13px]" style={{ color: INK }}>
-            <strong style={{ color: GOLD }}>22,4 %</strong>{' '}
+            <strong style={{ color: GOLD }}>{fr ? '22,4 %' : '22.4%'}</strong>{' '}
             {fr ? 'du corpus remonte jusqu’à un auteur identifié' : 'of the corpus traces back to an identified author'}
           </p>
           <p className="mt-1 text-[12px]" style={{ color: MUTED }}>
@@ -182,9 +203,14 @@ export default async function Datasets({ params }: { params: Promise<{ lang: str
       <section className="mb-8">
         <h2 className="mb-2 text-sm font-bold" style={{ color: INK }}>{fr ? 'Citer ce corpus' : 'Citing this corpus'}</h2>
         <pre className="overflow-x-auto rounded p-3 text-[12px]" style={{ background: '#FFF9EE', border: `1px solid ${LINE}`, color: INK }}>
-{`ASKIP — African Science Knowledge & Insight Platform.
-E-Shepha Hub. Référentiel ${ref?.referential_version ?? '—'}, agrégats du ${dateMaj}.
+{fr
+  ? `ASKIP — African Science Knowledge & Insight Platform.
+E-Shepha Hub. Référentiel ${ref?.referential_version ?? '[version non lue]'}, agrégats du ${dateMaj}.
 ${num(o.evidences_validated, L)} evidences validées sur ${num(o.evidences_total, L)} extraites.
+Licence CC BY 4.0. https://askip.e-shepha.com`
+  : `ASKIP — African Science Knowledge & Insight Platform.
+E-Shepha Hub. Referential ${ref?.referential_version ?? '[version not read]'}, aggregates of ${dateMaj}.
+${num(o.evidences_validated, L)} validated evidence items of ${num(o.evidences_total, L)} extracted.
 Licence CC BY 4.0. https://askip.e-shepha.com`}
         </pre>
         <p className="mt-2 text-[12px]" style={{ color: MUTED }}>
