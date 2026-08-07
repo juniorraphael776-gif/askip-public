@@ -29,7 +29,25 @@ export function EvidenceExplorer({
   const [section, setSection] = useState<string | null>(null);
   // Tant que personne n'a rien demandé, on montre ce que le serveur a déjà rendu.
   // Refaire l'appel au montage coûterait un aller-retour pour le même résultat.
-  const [vierge, setVierge] = useState(true);
+  // SAUF si le serveur n'a rien rendu — voir le rattrapage ci-dessous.
+  const [vierge, setVierge] = useState(initiales.length > 0);
+
+  /**
+   * RATTRAPAGE CÔTÉ CLIENT QUAND LE RENDU SERVEUR A ÉCHOUÉ.
+   *
+   * `search_evidence` met 3,5 s sur le domaine au premier accès — les vues sont
+   * matérialisées et le rendu ISR touche des pages froides. Constaté en production le
+   * 8 août 2026 : l'explorateur s'affichait vide avec « la lecture n'a pas abouti ».
+   * Le message était exact et l'écran était mort.
+   *
+   * Le second appel, lui, est rapide : le premier a réchauffé le cache. On rejoue donc
+   * depuis le navigateur. Ce n'est PAS masquer l'échec — si la reprise échoue aussi,
+   * l'état `panne` s'affiche et dit toujours que le corpus compte 63 227 evidences.
+   * C'est reconnaître qu'un échec à froid n'est pas un échec durable.
+   */
+  useEffect(() => {
+    if (initiales.length === 0) chercher({ limit: 15 });
+  }, [initiales.length, chercher]);
 
   useEffect(() => {
     if (vierge) return;
@@ -85,7 +103,7 @@ export function EvidenceExplorer({
       </header>
 
       <ListeEvidences
-        etat={vierge ? (initiales.length ? 'ok' : 'panne') : etat}
+        etat={vierge ? 'ok' : etat}
         lignes={affichees}
         total={compte}
         lang={lang}
