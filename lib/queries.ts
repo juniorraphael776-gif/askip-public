@@ -312,3 +312,118 @@ export interface ReferentialCoverage {
 export const getReferentialCoverage = () =>
   safe<ReferentialCoverage[]>('referential_coverage', () =>
     db.from('referential_coverage').select('*').limit(1)).then((r) => r?.[0] ?? null);
+
+/* ------------------------------------------------------------------ */
+/* Knowledge Graph                                                      */
+/*                                                                      */
+/* Trois lectures, et la troisième n'est pas décorative.                */
+/*                                                                      */
+/* `graph_meta` porte le SEUIL de co-mention. Il est LU, jamais recopié :*/
+/* si le bloc C n'est pas appliqué, `comention_min_weight` vaut NULL,    */
+/* `graph_neighbors` sans `p_edge` rend des evidences triées            */
+/* alphabétiquement au lieu de co-mentions triées par poids, et rien     */
+/* d'autre ne le dit. Un écran qui ne lit pas cette colonne ne peut pas  */
+/* savoir lequel des deux comportements il affiche.                     */
+/*                                                                      */
+/* `graph_top_nodes` est le centre de gravité du corpus : 12 lieux,      */
+/* 7 maladies, 1 population. AUCUN chercheur, aucune publication, aucune */
+/* evidence — leurs degrés sont un à deux ordres de grandeur en dessous. */
+/*                                                                      */
+/* D'où les PORTES. Sans elles, atteindre un chercheur depuis l'écran    */
+/* d'accueil demande trois sauts, dont un à travers 65 891 evidences.    */
+/* La porte est le nœud le plus connecté d'un type que le top 20 ne      */
+/* contient pas ; elle ramène le trajet à un clic.                      */
+/*                                                                      */
+/* ⚠️ Elle ne corrige RIEN. Le premier chercheur du corpus est à 466     */
+/* voisins quand Nigeria est à 15 219 — un facteur 33, qui est la        */
+/* couverture de 22,4 % de la chaîne chercheur rendue géométrique. La    */
+/* porte rend ce nœud atteignable ; l'écran doit dire qu'il est loin.    */
+/* Une porte sans son degré ferait paraître le graphe mieux relié qu'il  */
+/* n'est — le même défaut que la troncature non signalée, déplacé au     */
+/* point d'entrée.                                                      */
+/* ------------------------------------------------------------------ */
+
+export interface GraphMeta {
+  comention_min_weight: number | null;
+  comention_pairs_kept: number | null;
+  comention_pairs_hidden: number | null;
+  default_neighbor_limit: number | null;
+  node_types: string[];
+  edge_types: string[];
+  comention_excluded_types: string[];
+  neighbors_default_dominant_edge: string | null;
+}
+
+export interface GraphTopNode {
+  rank: number;
+  node_type: string;
+  node_id: string;
+  node_label: string;
+  degree_total: number;
+  degree_co_mention: number;
+  degree_mentionne: number;
+}
+
+export const getGraphMeta = () =>
+  safe<GraphMeta[]>('graph_meta', () => db.from('graph_meta').select('*').limit(1)).then((r) => r?.[0] ?? null);
+
+export const getGraphTopNodes = () =>
+  safe<GraphTopNode[]>('graph_top_nodes', () => db.from('graph_top_nodes').select('*').order('rank'));
+
+/** Une porte : le nœud le plus connecté d'un type absent du top 20. */
+export interface GraphDoor {
+  node_type: string;
+  node_id: string;
+  node_label: string;
+  degree_total: number;
+  /** Nombre de nœuds de ce type dans le corpus — la porte en représente UN. */
+  type_count: number;
+}
+
+/**
+ * `graph_node_degree` classe par degré mais NE PORTE PAS `node_label` — les
+ * libellés ne vivent que dans `graph_top_nodes`, qui par construction ne
+ * contient aucun de ces types. Le libellé est donc résolu par un appel à
+ * `graph_neighbors` avec `p_limit: 1`, dont `source_label` le rend.
+ *
+ * Deux allers-retours par porte. C'est le prix d'un libellé lisible pour un
+ * `node_id` qui est un UUID ; à `revalidate = 900`, il est payé quatre fois
+ * par quart d'heure.
+ */
+async function porte(type: string): Promise<GraphDoor | null> {
+  // Le plus connecté du type, et combien il y en a — indépendants, donc en parallèle.
+  const [tete, compte] = await Promise.all([
+    safe<{ node_id: string; degree_total: number }[]>(`graph_node_degree(${type})`, () =>
+      db.from('graph_node_degree').select('node_id, degree_total')
+        .eq('node_type', type).order('degree_total', { ascending: false }).limit(1)),
+    db.from('graph_node_degree').select('*', { count: 'exact', head: true })
+      .eq('node_type', type).then((r) => r.count),
+  ]);
+  if (!tete?.length) return null;
+  const n = tete[0];
+
+  const v = await safe<{ source_label: string }[]>(`graph_neighbors(${type} libellé)`, () =>
+    db.rpc('graph_neighbors', { p_node_type: type, p_node_id: n.node_id, p_limit: 1, p_edge: null }));
+
+  // Sans libellé, la porte serait un UUID nu. On la retire plutôt que de l'afficher
+  // illisible : un point d'entrée qu'on ne peut pas nommer n'en est pas un.
+  const label = v?.[0]?.source_label;
+  if (!label) return null;
+
+  return {
+    node_type: type, node_id: n.node_id, node_label: label,
+    degree_total: n.degree_total, type_count: compte ?? 0,
+  };
+}
+
+/**
+ * Les portes, pour les types que le top 20 n'atteint pas.
+ *
+ * `evidence` et `publication` en sont EXCLUS volontairement : leurs degrés
+ * plafonnent à 22 et 43, et il y en a 65 891 et 8 216. Un exemplaire tiré au
+ * degré n'y représente rien — et les deux sont déjà à un clic de n'importe
+ * quelle maladie par `p_edge = 'MENTIONNE'`. Une porte ne se justifie que là
+ * où le trajet est autrement long.
+ */
+export const getGraphDoors = () =>
+  Promise.all([porte('researcher'), porte('drug')]).then((d) => d.filter((x): x is GraphDoor => x !== null));

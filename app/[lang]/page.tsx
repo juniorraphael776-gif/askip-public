@@ -8,8 +8,8 @@
  */
 import { notFound } from 'next/navigation';
 import { isLang, t, type Lang } from '@/lib/i18n';
-import { getCountryTotals, getDiseaseTotals, getCoverageReach, getFreshness, getOverview, getTimeline } from '@/lib/queries';
-import { CountBar, Empty, Freshness, KeyFact, MethodBanner, Note, Section, Stat, Tier, YearBars, num } from '@/app/ui';
+import { getCountryTotals, getDiseaseTotals, getFreshness, getOverview, getTimeline } from '@/lib/queries';
+import { CountBar, Empty, Freshness, MethodBanner, Note, Section, Stat, Tier, YearBars, num } from '@/app/ui';
 import { GOLD, INK, LINE, MUTED } from '@/lib/theme';
 import { CountsDropNotice } from '@/app/notice';
 import { ValidationTierNotice } from '@/app/notice-validation';
@@ -24,7 +24,10 @@ export default async function Overview({ params }: { params: Promise<{ lang: str
   const [o, countries, diseases, timeline, freshness] = await Promise.all([
     getOverview(), getCountryTotals(12), getDiseaseTotals(20), getTimeline(), getFreshness(),
   ]);
-  const reach = await getCoverageReach();
+  // `getCoverageReach()` n'est plus appelé : ses deux chiffres — observations sans
+  // pays, sans date — sont partis dans Known limitations. La lecture est retirée avec
+  // eux plutôt que laissée orpheline : une requête dont personne ne lit le résultat
+  // coûte un aller-retour à chaque rendu et se fait oublier au prochain refactor.
 
   if (!o) {
     return (
@@ -49,25 +52,20 @@ export default async function Overview({ params }: { params: Promise<{ lang: str
 
       <MethodBanner text={t(L, 'method_note')} />
 
-      {/* Fait structurant, en évidence et non en note : les observations sans pays
-          sont invisibles dans TOUTE vue géographique, grille des manques comprise. */}
-      {/* Deux caractéristiques MESURÉES du corpus, en tête et non en note. Elles
-          bornent tout ce qui suit : sans pays, une observation n'entre dans aucune
-          carte ; sans date, aucune lecture temporelle ne la concerne. */}
-      {reach ? (
-        <div className="mb-8 grid gap-3 md:grid-cols-2">
-          <KeyFact
-            title={t(L, 'unmapped_title')}
-            value={`${num(reach.observations_unlocated, L)} ${t(L, 'of')} ${num(reach.observations_total, L)}`}
-            body={`${Math.round((reach.observations_unlocated / Math.max(1, reach.observations_total)) * 100)} % ${t(L, 'unmapped_body')}`}
-          />
-          <KeyFact
-            title={t(L, 'undated_title')}
-            value={`${num(reach.observations_total - reach.observations_dated, L)} ${t(L, 'of')} ${num(reach.observations_total, L)}`}
-            body={`${Math.round(((reach.observations_total - reach.observations_dated) / Math.max(1, reach.observations_total)) * 100)} % ${t(L, 'undated_body')}`}
-          />
-        </div>
-      ) : null}
+      {/* ── LES DEUX `KeyFact` ONT ÉTÉ RETIRÉS D'ICI, PAS SUPPRIMÉS ──────────────
+          « 15 472 observations n'entrent dans aucune carte » et « 34 155 ne portent
+          aucune date » étaient les deux premiers blocs de l'écran d'accueil. Les
+          chiffres sont exacts et le restent : ils vivent maintenant dans Known
+          limitations, la page qui existe pour ça et où un lecteur les cherche.
+
+          Ce n'est pas un adoucissement. Un écran d'accueil qui ouvre sur ses manques
+          se lit comme un aveu d'échec avant d'avoir rien montré — et le lecteur qui
+          part à la deuxième ligne n'apprendra jamais que le corpus documente 2 564
+          maladies sur 42 pays. Une limite énoncée avant l'objet qu'elle limite ne
+          renseigne personne ; elle décourage.
+
+          Analytique MESURE le corpus : evidences, publications, chercheurs, pays,
+          maladies. Ce qui manque a sa page. */}
 
       <section className="mb-12 grid grid-cols-2 gap-3 md:grid-cols-3">
         <Stat label={t(L, 'kpi_evidences')} value={num(o.evidences_validated, L)} hint={`${num(o.evidences_total, L)} extraites`} />

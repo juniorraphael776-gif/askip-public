@@ -1,0 +1,98 @@
+'use client';
+
+/**
+ * ASKIP — l'explorateur du bas. Le corpus entier, AUTONOME.
+ *
+ * Il ne se filtre PAS au clic sur le graphe. C'est la décision de conception : le
+ * visiteur doit avoir les deux échelles en même temps — ce qu'il regarde, et ce qui
+ * existe. Une version antérieure filtrait l'explorateur au clic ; le global
+ * disparaissait au moment précis où le lecteur se concentrait, et il perdait la seule
+ * chose qui lui disait de quoi son nœud était un échantillon.
+ *
+ * Il reste donc interrogeable quoi qu'on fasse au-dessus.
+ */
+import { useEffect, useState } from 'react';
+import { ListeEvidences, useEvidences, type EvidenceRow } from '@/app/graph/evidence';
+import { GOLD, INK, LINE, MUTED } from '@/lib/theme';
+
+export function EvidenceExplorer({
+  lang, initiales, initialTotal, sections,
+}: {
+  lang: 'fr' | 'en';
+  initiales: EvidenceRow[];
+  initialTotal: number;
+  sections: string[];
+}) {
+  const fr = lang === 'fr';
+  const { etat, lignes, total, chercher } = useEvidences(lang);
+  const [q, setQ] = useState('');
+  const [section, setSection] = useState<string | null>(null);
+  // Tant que personne n'a rien demandé, on montre ce que le serveur a déjà rendu.
+  // Refaire l'appel au montage coûterait un aller-retour pour le même résultat.
+  const [vierge, setVierge] = useState(true);
+
+  useEffect(() => {
+    if (vierge) return;
+    // Le délai évite un appel par frappe. 350 ms : au-delà l'attente se sent, en
+    // deçà on lance des requêtes que la suivante rend caduques.
+    const t = setTimeout(() => chercher({ q, section, limit: 15 }), 350);
+    return () => clearTimeout(t);
+  }, [q, section, vierge, chercher]);
+
+  const affichees = vierge ? initiales : lignes;
+  const compte = vierge ? initialTotal : total;
+
+  return (
+    <section className="rounded-lg p-4" style={{ border: `1px solid ${LINE}`, background: '#FFFFFF' }}>
+      <header className="mb-3 flex flex-wrap items-baseline justify-between gap-2 border-b pb-3" style={{ borderColor: LINE }}>
+        <div>
+          <h2 className="text-sm font-bold" style={{ color: INK }}>
+            {fr ? 'Explorer le corpus' : 'Explore the corpus'}
+          </h2>
+          <p className="text-[11px]" style={{ color: MUTED }}>
+            {fr
+              ? 'Indépendant du graphe : ce qui existe, quoi qu’on regarde au-dessus.'
+              : 'Independent of the graph: what exists, whatever you look at above.'}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            value={q}
+            onChange={(e) => { setVierge(false); setQ(e.target.value); }}
+            placeholder={fr ? 'chercher dans les claims…' : 'search claims…'}
+            className="rounded px-2 py-1 text-[13px] outline-none"
+            style={{ border: `1px solid ${LINE}`, color: INK, minWidth: '16rem', background: '#FCFAF5' }}
+          />
+          <select
+            value={section ?? ''}
+            onChange={(e) => { setVierge(false); setSection(e.target.value || null); }}
+            className="rounded px-2 py-1 text-[12px]"
+            style={{ border: `1px solid ${LINE}`, color: MUTED, background: '#FCFAF5' }}
+          >
+            <option value="">{fr ? 'toutes sections' : 'all sections'}</option>
+            {sections.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+          {!vierge && (
+            <button
+              onClick={() => { setQ(''); setSection(null); setVierge(true); }}
+              className="text-[12px] hover:underline"
+              style={{ color: GOLD }}
+            >
+              {fr ? 'réinitialiser' : 'reset'}
+            </button>
+          )}
+        </div>
+      </header>
+
+      <ListeEvidences
+        etat={vierge ? (initiales.length ? 'ok' : 'panne') : etat}
+        lignes={affichees}
+        total={compte}
+        lang={lang}
+        vide={fr
+          ? 'Aucune evidence validée ne correspond. Le terme est cherché dans le texte du claim, pas dans les libellés normalisés.'
+          : 'No validated evidence matches. The term is searched in the claim text, not in normalised labels.'}
+      />
+    </section>
+  );
+}
