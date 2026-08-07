@@ -130,9 +130,25 @@ export function Freshness({ lang, at, isStale, suffix }: {
   lang: Lang; at: string; isStale: boolean; suffix?: ReactNode;
 }) {
   const fr = lang === 'fr';
-  const day = 86_400_000;
-  const days = Math.max(0, Math.floor((Date.now() - new Date(at).getTime()) / day));
-  const date = new Date(at).toLocaleDateString(fr ? 'fr-FR' : 'en-US', {
+  const quand = new Date(at);
+
+  /**
+   * L'écart se compte en JOURS DE CALENDRIER, pas en millisecondes écoulées.
+   *
+   * `Math.floor((Date.now() - at) / 86 400 000)` rendait 0 pour un écart de 19 heures,
+   * et l'écran affichait « Ces chiffres datent du 6 août 2026 (aujourd'hui) » — un
+   * 7 août. La phrase se contredisait elle-même : la date disait la veille, le mot
+   * disait le jour même, et le lecteur devait choisir lequel croire.
+   *
+   * Le calcul n'était pas faux, il répondait à une autre question — « combien de
+   * périodes de 24 h se sont écoulées » au lieu de « quel jour était-ce ». Les deux
+   * coïncident la plupart du temps, ce qui est exactement ce qui rend l'erreur rare
+   * et durable.
+   */
+  const minuit = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const days = Math.max(0, Math.round((minuit(new Date()) - minuit(quand)) / 86_400_000));
+
+  const date = quand.toLocaleDateString(fr ? 'fr-FR' : 'en-US', {
     day: 'numeric', month: 'long', year: 'numeric',
   });
   const age = fr

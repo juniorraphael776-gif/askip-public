@@ -24,9 +24,9 @@ export default async function LangLayout({
               disparaît pas, il cesse de prétendre mesurer la santé des pays pour
               mesurer le corpus.
 
-              Deux destinations n'existent pas encore. Elles sont rendues INERTES
-              plutôt qu'en lien mort : un lien qui mène à un 404 en production coûte
-              plus cher qu'un mot grisé qui annonce ce qui vient.
+              Les six entrées sont désormais actives. « Jeux de données » et
+              « À propos » l'étaient restées inertes tant qu'elles n'avaient rien à
+              montrer — un lien vers un 404 coûte plus cher qu'un mot grisé.
 
               `/burden` et `/gaps` NE DISPARAISSENT PAS — ils passent sous Analytique.
               Un écran retiré du menu est un écran qu'on croit supprimé : la carte de
@@ -38,10 +38,7 @@ export default async function LangLayout({
             </a>
             <a href={`/${L}/evidence`} className="hover:underline">{t(L, 'nav_evidence')}</a>
             <a href={`/${L}/researchers`} className="hover:underline">{t(L, 'nav_researchers')}</a>
-            <span className="cursor-default" style={{ color: MUTED, opacity: 0.55 }}>
-              {t(L, 'nav_datasets')}
-              <span className="ml-1 text-[10px] uppercase tracking-wide">{t(L, 'nav_bientot')}</span>
-            </span>
+            <a href={`/${L}/datasets`} className="hover:underline">{t(L, 'nav_datasets')}</a>
             <span className="inline-flex items-baseline gap-x-2">
               <a href={`/${L}`} className="hover:underline">{t(L, 'nav_analytics')}</a>
               <span className="text-[12px]" style={{ opacity: 0.8 }}>
@@ -50,10 +47,7 @@ export default async function LangLayout({
                 <a href={`/${L}/gaps`} className="hover:underline">{t(L, 'nav_gaps')}</a>
               </span>
             </span>
-            <span className="cursor-default" style={{ color: MUTED, opacity: 0.55 }}>
-              {t(L, 'nav_about')}
-              <span className="ml-1 text-[10px] uppercase tracking-wide">{t(L, 'nav_bientot')}</span>
-            </span>
+            <a href={`/${L}/about`} className="hover:underline">{t(L, 'nav_about')}</a>
           </div>
           <div className="ml-auto text-sm">
             <a href={`/${other(L)}`} className="rounded px-2 py-1 hover:underline" style={{ color: GOLD }}>
