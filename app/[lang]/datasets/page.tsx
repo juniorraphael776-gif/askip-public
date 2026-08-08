@@ -97,7 +97,22 @@ export default async function Datasets({ params }: { params: Promise<{ lang: str
         <h2 className="mb-2 text-sm font-bold" style={{ color: INK }}>
           {fr ? 'Identification' : 'Identification'}
         </h2>
-        <Champ cle={fr ? 'Nom' : 'Name'} valeur="ASKIP — African Science Knowledge & Insight Platform" />
+        {/* ⚠️ LE NOM VIENT DU DÉPÔT, PAS DU PORTAIL.
+            Le portail portait « African Science Knowledge & Insight Platform ».
+            Zenodo est publié et IMMUABLE sous « ASKIP (African Sovereign Knowledge Infrastructure Program) » : un dépôt cité sous un nom et
+            un site qui en porte un autre font deux projets aux yeux d'un lecteur, et
+            c'est le dépôt qui ne peut plus bouger. */}
+        <Champ cle={fr ? 'Nom' : 'Name'} valeur="ASKIP (African Sovereign Knowledge Infrastructure Program)" />
+        <Champ
+          cle="DOI"
+          valeur={
+            <a href="https://doi.org/10.5281/zenodo.21794560" target="_blank" rel="noopener noreferrer"
+               className="hover:underline" style={{ color: GOLD }}>
+              10.5281/zenodo.21794560
+            </a>
+          }
+          note={fr ? 'dépôt Zenodo, résolvable et permanent' : 'Zenodo deposit, resolvable and permanent'}
+        />
         {/* ⚠️ UN ZÉRO AFFICHÉ EST UNE AFFIRMATION, UNE ABSENCE ANNONCÉE N'EN EST PAS
             UNE. Quand `referential_coverage` expire — troisième chemin froid observé,
             et le premier qui produit un CHIFFRE FAUX plutôt qu'un vide — cette ligne
@@ -204,14 +219,14 @@ export default async function Datasets({ params }: { params: Promise<{ lang: str
         <h2 className="mb-2 text-sm font-bold" style={{ color: INK }}>{fr ? 'Citer ce corpus' : 'Citing this corpus'}</h2>
         <pre className="overflow-x-auto rounded p-3 text-[12px]" style={{ background: '#FFF9EE', border: `1px solid ${LINE}`, color: INK }}>
 {fr
-  ? `ASKIP — African Science Knowledge & Insight Platform.
+  ? `ASKIP (African Sovereign Knowledge Infrastructure Program).
 E-Shepha Hub. Référentiel ${ref?.referential_version ?? '[version non lue]'}, agrégats du ${dateMaj}.
 ${num(o.evidences_validated, L)} evidences validées sur ${num(o.evidences_total, L)} extraites.
-Licence CC BY 4.0. https://askip.e-shepha.com`
-  : `ASKIP — African Science Knowledge & Insight Platform.
+DOI 10.5281/zenodo.21794560. Licence CC BY 4.0. https://askip.e-shepha.com`
+  : `ASKIP (African Sovereign Knowledge Infrastructure Program).
 E-Shepha Hub. Referential ${ref?.referential_version ?? '[version not read]'}, aggregates of ${dateMaj}.
 ${num(o.evidences_validated, L)} validated evidence items of ${num(o.evidences_total, L)} extracted.
-Licence CC BY 4.0. https://askip.e-shepha.com`}
+DOI 10.5281/zenodo.21794560. Licence CC BY 4.0. https://askip.e-shepha.com`}
         </pre>
         <p className="mt-2 text-[12px]" style={{ color: MUTED }}>
           {fr
@@ -222,8 +237,8 @@ Licence CC BY 4.0. https://askip.e-shepha.com`}
 
       <p className="border-t pt-4 text-[12px]" style={{ borderColor: LINE, color: MUTED }}>
         {fr
-          ? 'Les dépôts Zenodo et Hugging Face ne sont pas encore ouverts. Cette fiche décrit le corpus servi par ce portail.'
-          : 'The Zenodo and Hugging Face deposits are not open yet. This card describes the corpus served by this portal.'}
+          ? <>Le dépôt <a href="https://doi.org/10.5281/zenodo.21794560" target="_blank" rel="noopener noreferrer" className="hover:underline" style={{ color: GOLD }}>Zenodo</a> est publié sous DOI permanent. Le dépôt Hugging Face ne l’est pas encore.</>
+          : <>The <a href="https://doi.org/10.5281/zenodo.21794560" target="_blank" rel="noopener noreferrer" className="hover:underline" style={{ color: GOLD }}>Zenodo</a> deposit is published under a permanent DOI. The Hugging Face deposit is not yet.</>}
       </p>
     </>
   );
