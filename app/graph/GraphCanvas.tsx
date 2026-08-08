@@ -358,6 +358,7 @@ export function GraphCanvas({
 
   const montres = voisinage ? voisinage.size - 1 : 0;
 
+
   /**
    * LE NOYAU RELIÉ — les nœuds qui portent au moins une arête.
    *
@@ -370,11 +371,102 @@ export function GraphCanvas({
    * On cadre donc sur le noyau. Les isolés restent DESSINÉS — ils ne disparaissent
    * pas — ils cessent seulement de commander l'échelle de lecture des autres.
    */
+  /**
+   * CADRER À LA MAIN, PARCE QUE `zoomToFit` NE MESURE PAS CE QU'ON CROIT.
+   *
+   * Quatre tentatives pour le faire remplir le cadre ont échoué : forces rééquilibrées,
+   * second appel différé, filtre sur le noyau relié, canvas agrandi. L'amas restait à
+   * 294 px dans un canvas de 790 — la disposition était bonne, c'est la mesure de son
+   * étendue qui ne l'était pas.
+   *
+   * On cesse de le réparer et on le contourne : on relève soi-même min/max de x et y,
+   * puis on pose le zoom et le centre. Mesurer soi-même dispense d'avoir raison sur ce
+   * que mesure l'autre.
+   *
+   * ⚠️ LES COORDONNÉES SE LISENT SUR LE TABLEAU DE LA BIBLIOTHÈQUE, JAMAIS SUR LE NÔTRE.
+   * `react-force-graph` MUTE les objets pour y écrire `x` et `y`. Lire l'état React
+   * rendrait des `undefined`, `Math.min` rendrait `NaN`, et `zoom(NaN)` ne dirait rien —
+   * exactement le piège du compteur à « 0 sur 13 845 » : la comparaison reste valide et
+   * la réponse est fausse. On passe donc par `graphData().nodes`.
+   */
+  const cadrer = useCallback((restreindre: Set<string> | null) => {
+    const g = fg.current;
+    /**
+     * ON LIT LES COORDONNÉES SUR NOTRE PROPRE TABLEAU, ET C'EST CORRECT ICI.
+     *
+     * `fg.current.graphData` N'EXISTE PAS sur cette référence — mesuré : `zoom` et
+     * `centerAt` y sont, `graphData` non. Mais `react-force-graph` MUTE EN PLACE le
+     * tableau reçu par la prop `graphData`, et ce tableau est celui de notre état :
+     * les objets que la simulation positionne SONT ceux de `nodes`.
+     *
+     * Le piège n'est donc pas de lire son propre tableau — c'est d'en lire une COPIE.
+     * Un `nodes.map(...)` intercalé et les coordonnees disparaitraient sans erreur,
+     * `Math.min` rendrait `NaN`, et `zoom(NaN)` ne dirait rien.
+     */
+    const tous: any[] = nodes as any[];
+    const vus = restreindre ? tous.filter((n) => restreindre.has(n.id)) : tous;
+    const pts = vus.filter((n) => Number.isFinite(n.x) && Number.isFinite(n.y));
+    if (pts.length < 2) return;
+
+    const xs = pts.map((n) => n.x), ys = pts.map((n) => n.y);
+    const x0 = Math.min(...xs), x1 = Math.max(...xs);
+    const y0 = Math.min(...ys), y1 = Math.max(...ys);
+    // La marge tient compte du libellé, posé SOUS le nœud : sans elle, les noms du bas
+    // sortent du cadre et le graphe paraît coupé.
+    const marge = 46;
+    const l = Math.max(1, x1 - x0), h = Math.max(1, y1 - y0);
+    const z = Math.min((largeur - marge * 2) / l, (hauteur - marge * 2) / h);
+    g?.centerAt?.((x0 + x1) / 2, (y0 + y1) / 2, 420);
+    // Plafonné : sur deux nœuds très proches, le rapport exploserait et on afficherait
+    // deux disques géants au lieu d'un graphe.
+    const zf = Math.min(Math.max(z, 0.05), 6);
+    g?.zoom?.(zf, 420);
+  }, [largeur, hauteur, nodes]);
+
+  // Déclarée avant l'effet qui la lit ; sa valeur est posée plus bas, une fois
+  // `voisinage` et `noyau` connus.
+  const cadrerRef = useRef<(() => void) | null>(null);
+
+  /**
+   * ⚠️ NE PAS DÉPENDRE DE `onEngineStop` : IL NE SE DÉCLENCHE PAS DE FAÇON FIABLE.
+   *
+   * Mesuré : avec cent nœuds, `cadrer()` n'était JAMAIS appelé — un témoin posé dans
+   * la fonction n'apparaissait pas une seule fois. Toute l'enquête sur `zoomToFit`
+   * portait donc à faux : il ne mesurait pas mal, il n'était pas exécuté. Quatre
+   * réglages de forces, un cadrage différé, un filtre sur le noyau, un canvas
+   * agrandi — tous évalués contre un appel qui n'avait pas lieu.
+   *
+   * C'est le motif du projet une fois de plus : l'absence d'effet ressemblait
+   * exactement à un effet qui échoue, et j'ai passé quatre itérations à corriger le
+   * second.
+   *
+   * Le cadrage est donc déclenché par le TEMPS, sur changement de données. 2 400 ms
+   * couvrent les 140 ticks ; `onEngineStop` reste branché comme accélérateur quand il
+   * veut bien tirer, et le garde `cadre.current` empêche le doublon.
+   */
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (cadre.current === nodes.length) return;
+      cadre.current = nodes.length;
+      cadrerRef.current?.();
+    }, 2400);
+    return () => clearTimeout(t);
+  }, [nodes.length, links.length]);
+
   const noyau = useMemo(() => {
     const s = new Set<string>();
     for (const l of links) { s.add(bout(l.source)); s.add(bout(l.target)); }
     return s;
   }, [links]);
+  // Le minuteur plus haut lit CETTE référence. Elle est réaffectée à chaque rendu pour
+  // qu'il voie le dernier `voisinage` et le dernier `noyau`, jamais ceux du premier.
+  //
+  // ⚠️ Cette ligne avait été « posée » par un remplacement qui visait une ancre
+  // supprimée entre-temps : il n'a rien écrit, `tsc` est resté vert puisque la
+  // référence existait, et le minuteur appelait `null?.()` — un no-op silencieux.
+  // Une édition qui ne s'applique pas rend le même résultat qu'une édition appliquée.
+  cadrerRef.current = () =>
+    cadrer(voisinage && voisinage.size > 1 ? voisinage : (noyau.size > 1 ? noyau : null));
 
   /**
    * ⚠️ L'OBJET PASSÉ À `graphData` DOIT GARDER SON IDENTITÉ ENTRE DEUX RENDUS.
@@ -432,24 +524,10 @@ export function GraphCanvas({
           // vérifié : « cadrage à 22 nœuds » puis « cadrage à 64 nœuds », jamais un
           // cadrage sur le seul nœud cliqué.
           const v = voisinage;
-          const filtre = v && v.size > 1
-            ? (n: any) => v.has(n.id)
-            : (noyau.size > 1 ? (n: any) => noyau.has(n.id) : undefined);
-          fg.current?.zoomToFit?.(500, 40, filtre);
-          /**
-           * SECOND CADRAGE, 500 ms PLUS TARD, ET UNE SEULE FOIS.
-           *
-           * `onEngineStop` se déclenche au tick 200 ; à cet instant les nœuds occupent
-           * encore une étendue plus large que celle où ils finissent. Le cadre était
-           * donc calculé sur une dispersion transitoire, et le graphe s'affichait au
-           * tiers de la place disponible — la disposition était bonne, c'est la MESURE
-           * de son étendue qui était prématurée.
-           *
-           * Le garde `cadre.current` est déjà posé plus haut : ce second appel ne peut
-           * pas se répéter, et il ne relance pas la simulation puisqu'il ne fait que
-           * déplacer la caméra.
-           */
-          setTimeout(() => fg.current?.zoomToFit?.(400, 40, filtre), 500);
+          // À défaut de sélection, on cadre sur le NOYAU RELIÉ : un nœud sans arête
+          // n'est retenu par rien et peut dériver loin, ce qui rétrécirait tout le
+          // reste. Il reste dessiné, il cesse seulement de commander l'échelle.
+          cadrer(v && v.size > 1 ? v : (noyau.size > 1 ? noyau : null));
         }}
         onNodeClick={auClic}
         nodeCanvasObject={(brut: any, ctx: CanvasRenderingContext2D, echelle: number) => {
@@ -502,14 +580,24 @@ export function GraphCanvas({
           // au centre.
           ctx.beginPath();
           ctx.arc(n.x, n.y, r, 0, 2 * Math.PI);
-          if (n.porte || n.role === 'pont') {
-            // Creux : « j'annonce une fonction, je ne rapporte pas un fait mesuré ».
-            // Même grammaire que les portes du point d'entrée précédent.
-            ctx.fillStyle = PAPER; ctx.fill();
-            ctx.strokeStyle = c; ctx.lineWidth = 2 / echelle; ctx.stroke();
-          } else {
-            ctx.fillStyle = c; ctx.fill();
-          }
+          /**
+           * NŒUDS TRANSPARENTS : contour lumineux, intérieur translucide.
+           *
+           * Le disque plein masquait le fond et écrasait les arêtes qui passent
+           * dessous ; à cent nœuds, la lecture des liens comptait plus que la présence
+           * des points. Le fond ivoire se voit maintenant à travers, et le HALO fait
+           * le travail de présence sans coder aucune valeur.
+           *
+           * La distinction de rôle survit à la transparence : un nœud de DEGRÉ garde un
+           * intérieur teinté, un PONT n'en a aucun. La grammaire est la même qu'avant —
+           * « j'annonce une fonction, je ne rapporte pas un fait mesuré » — mais elle
+           * passe du plein/creux au teinté/vide.
+           */
+          const pont = n.porte || n.role === 'pont';
+          if (!pont) { ctx.fillStyle = `${c}26`; ctx.fill(); }
+          ctx.strokeStyle = c;
+          ctx.lineWidth = (pont ? 1.4 : 2.1) / echelle;
+          ctx.stroke();
 
           // ARC OUVERT : le contour s'interrompt sur un quart de tour. Le nœud cesse
           // d'être un disque fermé, et cela se voit sans être cliqué ni survolé.

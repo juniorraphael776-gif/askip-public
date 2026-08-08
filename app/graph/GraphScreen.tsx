@@ -25,8 +25,15 @@ export function GraphScreen({
   // GraphCanvas se redéclencherait à chaque rendu du parent.
   const surSelection = useCallback((n: GraphNode | null) => setChoisi(n), []);
 
+  /*
+   * ⚠️ HAUTEUR DE RANGÉE FIXE SUR GRAND ÉCRAN.
+   * Sans elle, le panneau grandit avec ses douze evidences et étire la rangée : le
+   * canvas reste à 460 px et une bande vide s'ouvre sous le graphe, sur toute la
+   * largeur, à chaque clic. La grille est un contrat de hauteur commun, pas deux blocs
+   * côte à côte — et c'est au panneau de défiler, puisque c'est lui qui porte la liste.
+   */
   return (
-    <div className="mb-6 grid gap-4 lg:grid-cols-[minmax(0,2.6fr)_minmax(0,1fr)]">
+    <div className="mb-6 grid gap-4 lg:h-[460px] lg:grid-cols-[minmax(0,2.6fr)_minmax(0,1fr)]">
       <GraphCanvas nodes={nodes} links={links} lang={lang} limite={limite} onSelect={surSelection} />
       <EvidencePanel noeud={choisi} lang={lang} />
     </div>
