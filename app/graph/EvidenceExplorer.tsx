@@ -13,6 +13,7 @@
  */
 import { useEffect, useState } from 'react';
 import { ListeEvidences, useEvidences, type EvidenceRow } from '@/app/graph/evidence';
+import { db } from '@/lib/supabase-public';
 import { BORDEAUX, GOLD, INK, LINE, MUTED, PAPER } from '@/lib/theme';
 
 export function EvidenceExplorer({
@@ -48,6 +49,22 @@ export function EvidenceExplorer({
   useEffect(() => {
     if (initiales.length === 0) chercher({ limit: 15 });
   }, [initiales.length, chercher]);
+
+  /**
+   * Les sections viennent du navigateur quand le serveur ne les a pas fournies.
+   * `search_facets` met 3,6 s à elle seule — elle expire au rendu ISR — et un menu
+   * déroulant vide sans explication se lit comme « ce corpus n'a pas de sections ».
+   * En cas d'échec ici aussi, `sectionsKO` le dit à côté du menu.
+   */
+  const [sect, setSect] = useState<string[]>(sections);
+  const [sectionsKO, setSectionsKO] = useState(false);
+  useEffect(() => {
+    if (sections.length) return;
+    db.from('search_facets').select('section').then(({ data, error }) => {
+      if (error || !data) { setSectionsKO(true); return; }
+      setSect([...new Set(data.map((f) => f.section))].filter(Boolean).sort());
+    });
+  }, [sections.length]);
 
   useEffect(() => {
     if (vierge) return;
@@ -88,8 +105,13 @@ export function EvidenceExplorer({
             style={{ border: `1px solid ${LINE}`, color: MUTED, background: PAPER }}
           >
             <option value="">{fr ? 'toutes sections' : 'all sections'}</option>
-            {sections.map((s) => <option key={s} value={s}>{s}</option>)}
+            {sect.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
+          {sectionsKO && (
+            <span className="text-[11px]" style={{ color: '#8C3A2E' }}>
+              {fr ? 'sections non lues' : 'sections not read'}
+            </span>
+          )}
           {!vierge && (
             <button
               onClick={() => { setQ(''); setSection(null); setVierge(true); }}

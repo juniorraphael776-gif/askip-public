@@ -427,3 +427,66 @@ async function porte(type: string): Promise<GraphDoor | null> {
  */
 export const getGraphDoors = () =>
   Promise.all([porte('researcher'), porte('drug')]).then((d) => d.filter((x): x is GraphDoor => x !== null));
+
+/* ------------------------------------------------------------------ */
+/* Graphe — le point d'entrée à 100 nœuds                              */
+/*                                                                      */
+/* `graph_entry` remplace `graph_top_nodes` : 100 nœuds ÉQUILIBRÉS par  */
+/* type — 30 maladies, 25 pays, 15 chercheurs, 15 publications, 15      */
+/* evidences — au lieu de 20 nœuds classés par degré, qui ne pouvaient  */
+/* par construction contenir aucun chercheur.                           */
+/*                                                                      */
+/* ⚠️ `graph_entry` NE PORTE PAS DE LIBELLÉ. Trois colonnes :           */
+/* node_type, node_id, role. Pour une maladie ou un pays, `node_id` EST */
+/* le libellé ; pour un chercheur, une publication ou une evidence,     */
+/* c'est un UUID. Les libellés viennent de `graph_node` (99 687 lignes),*/
+/* joints sur le COUPLE (type, id) — `node_id` n'est unique que par     */
+/* type, et joindre sur l'id seul ramènerait le mauvais libellé le jour */
+/* où deux types partagent une valeur.                                  */
+/*                                                                      */
+/* `role` vaut `degre` (70) ou `pont` (30) : pourquoi ce nœud est là.   */
+/* Un pont n'est pas retenu pour son importance mais pour ce qu'il      */
+/* relie — c'est ce qui permet à la chaîne chercheur → publication →    */
+/* evidence d'exister à l'écran alors qu'elle ne couvre que 22,4 % du   */
+/* corpus.                                                              */
+/* ------------------------------------------------------------------ */
+
+export interface GraphEntryNode {
+  node_type: string; node_id: string; role: 'degre' | 'pont'; node_label: string;
+}
+export interface GraphEntryEdge {
+  source_type: string; source_id: string; edge: string;
+  target_type: string; target_id: string; weight: number | null;
+}
+export interface GraphEntryMeta {
+  nodes: number; edges_shown: number; edges_hidden: number;
+  entry_min_comention_weight: number | null;
+  nodes_by_type: Record<string, number>;
+}
+
+export const getGraphEntryMeta = () =>
+  safe<GraphEntryMeta[]>('graph_entry_meta', () => db.from('graph_entry_meta').select('*').limit(1))
+    .then((r) => r?.[0] ?? null);
+
+export const getGraphEntryEdges = () =>
+  safe<GraphEntryEdge[]>('graph_entry_edges', () => db.from('graph_entry_edges').select('*'));
+
+/** Les 100 nœuds, libellés résolus. Rend `null` si la lecture n'aboutit pas. */
+export async function getGraphEntry(): Promise<GraphEntryNode[] | null> {
+  const socle = await safe<{ node_type: string; node_id: string; role: 'degre' | 'pont' }[]>(
+    'graph_entry', () => db.from('graph_entry').select('*'));
+  if (!socle?.length) return null;
+
+  const labels = await safe<{ node_type: string; node_id: string; node_label: string }[]>(
+    'graph_node', () => db.from('graph_node').select('node_type, node_id, node_label')
+      .in('node_id', [...new Set(socle.map((n) => n.node_id))]));
+
+  // Clé COMPOSITE : le type ET l'id. Voir l'en-tête — c'est le seul appariement sûr.
+  const carte = new Map((labels ?? []).map((r) => [`${r.node_type}:${r.node_id}`, r.node_label]));
+  return socle.map((n) => ({
+    ...n,
+    // Un libellé manquant retombe sur l'id : illisible pour un UUID, mais JAMAIS vide.
+    // Un nœud sans nom ne se clique pas — on ne désigne pas ce qu'on ne peut pas nommer.
+    node_label: carte.get(`${n.node_type}:${n.node_id}`) ?? n.node_id,
+  }));
+}

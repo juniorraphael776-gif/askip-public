@@ -68,6 +68,13 @@ export default async function LangLayout({
                 <a href={`/${L}/gaps`} className="hover:underline">{t(L, 'nav_gaps')}</a>
               </span>
             </span>
+            {/* SEPTIÈME ENTRÉE. « Défis connus » n'était atteignable que par les
+                lignes posées sur cinq écrans — donc invisible pour qui la cherche,
+                et c'est la page qu'un ministère ouvre en premier. Placée avant
+                « À propos » : on demande ce qui manque avant de demander qui fait. */}
+            <a href={`/${L}/challenges`} className="hover:underline">
+              {L === 'fr' ? 'Défis connus' : 'Known challenges'}
+            </a>
             <a href={`/${L}/about`} className="hover:underline">{t(L, 'nav_about')}</a>
           </div>
           <div className="ml-auto text-sm">

@@ -45,7 +45,20 @@ export type NodeType =
   | 'disease' | 'location' | 'population' | 'drug'
   | 'researcher' | 'publication' | 'evidence';
 
+/**
+ * Pourquoi ce nœud est à l'écran.
+ *   `degre` — il est là parce qu'il est très relié : c'est un sujet du corpus.
+ *   `pont`  — il est là parce qu'il RELIE : sans lui, la chaîne chercheur →
+ *             publication → evidence n'apparaîtrait pas, puisqu'elle ne couvre que
+ *             22,4 % du corpus et qu'aucun de ses nœuds n'entrerait par le degré.
+ * Les deux ne se dessinent pas pareil : un pont annonce une fonction, pas une
+ * importance, et le confondre avec un sujet ferait croire que le corpus documente
+ * autant les auteurs que les maladies.
+ */
+export type NodeRole = 'degre' | 'pont';
+
 export interface GraphNode {
+  role?: NodeRole;
   /** `${node_type}:${node_id}` — les identifiants ne sont uniques que par type. */
   id: string;
   node_type: NodeType;
@@ -79,9 +92,19 @@ function bout(v: unknown): string {
   return typeof v === 'string' ? v : ((v as { id?: string } | null)?.id ?? '');
 }
 
+/**
+ * Les types se distinguent dans la FAMILLE de la charte : bordeaux et or en sont les
+ * deux pôles, le reste sont des tons dérivés. Une palette d'arc-en-ciel séparerait
+ * mieux sept types — et ferait un graphe qui n'appartient plus au site.
+ */
 const COULEUR: Record<NodeType, string> = {
-  disease: '#1F6F4A', location: '#C69A2E', population: '#7A8A5E', drug: '#A8623C',
-  researcher: '#6B4E8C', publication: '#4E6B8C', evidence: '#5B6B7A',
+  disease:     '#5A0F16',  // bordeaux — la maladie est le sujet du corpus
+  location:    '#C49A2C',  // or — l'accent de la charte
+  researcher:  '#8C3A44',  // bordeaux clairci
+  publication: '#A8762E',  // or assombri
+  evidence:    '#7A5B52',  // brun neutre : le pont, jamais le sujet
+  population:  '#9A8B6E',
+  drug:        '#B08542',
 };
 
 const RAYON: Record<NodeType, number> = {
@@ -147,8 +170,12 @@ export function GraphCanvas({
   const boite = useRef<HTMLDivElement>(null);
   const fg = useRef<any>(null);
   const [largeur, setLargeur] = useState(900);
-  /** Le graphe sert à ENTRER, pas à occuper. Les deux tiers du bas portent la matière. */
-  const hauteur = 340;
+  /**
+   * 340 px suffisaient à vingt nœuds. À cent, ils produisent une pelote : la surface
+   * disponible par nœud décide de la lisibilité bien avant les forces. 460 reste le
+   * tiers haut d'un écran de portable et laisse la matière sous la ligne de flottaison.
+   */
+  const hauteur = 460;
   const [nodes, setNodes] = useState<GraphNode[]>(nodesInit);
   const [links, setLinks] = useState<GraphLink[]>(linksInit);
   const [choisi, setChoisi] = useState<GraphNode | null>(null);
@@ -170,8 +197,22 @@ export function GraphCanvas({
   useEffect(() => { onSelect?.(choisi); }, [choisi, onSelect]);
 
 
-  /** Les nœuds d'entrée gardent leur nom à toute échelle : ce sont les repères. */
-  const ancres = useRef(new Set(nodesInit.map((n) => n.id))).current;
+  /**
+   * QUI GARDE SON NOM À TOUTE ÉCHELLE.
+   *
+   * La règle était « tous les nœuds d'entrée ». Elle tenait à vingt ; à cent elle
+   * produit un mur de texte, parce que les quinze evidences ont pour libellé une
+   * PHRASE ENTIÈRE — « The pooled prevalence of radiological… » — et que quinze
+   * phrases superposées effacent les cinquante-cinq noms courts qui, eux, se lisaient.
+   *
+   * On ne nomme donc d'emblée que les maladies et les pays : leurs libellés sont des
+   * noms, pas des énoncés. Les chercheurs, publications et evidences gardent le leur
+   * dès qu'on les sélectionne, qu'on les déplie, ou qu'on zoome — rien ne disparaît du
+   * dessin, c'est le TEXTE qui attend d'avoir la place.
+   */
+  const ancres = useRef(new Set(
+    nodesInit.filter((n) => n.node_type === 'disease' || n.node_type === 'location').map((n) => n.id),
+  )).current;
 
   useEffect(() => {
     if (!enCours) { setLent(false); return; }
@@ -210,13 +251,21 @@ export function GraphCanvas({
     // soixante-dix voisins reliés les éjecte tous hors du cadre. Vu à l'écran — canvas
     // vide, sans erreur, sans rien dans la console. Le réglage doit tenir les deux
     // régimes, et c'est le cadrage automatique qui rattrape l'étendue.
-    g.d3Force('charge')?.strength(-340).distanceMax(600);
-    g.d3Force('link')?.distance(80);
+    // Réglé pour CENT nœuds et six cent quarante arêtes, plus pour vingt-deux sans
+    // aucune. Les arêtes rapprochent : la répulsion doit monter avec elles, sinon le
+    // graphe s'effondre en pelote — ce qu'il a fait au premier essai.
+    g.d3Force('charge')?.strength(-380).distanceMax(420);
+    g.d3Force('link')?.distance((l: any) => (l.edge === 'CO_MENTION' ? 70 : 38)).strength(0.4);
     // La force de centrage tire TOUT vers le milieu et, sans arête, c'est elle qui
     // gagne : les vingt-deux nœuds d'entrée se recouvraient d'autant plus que la
     // simulation tournait longtemps. On l'affaiblit pour que la répulsion décide de
     // l'étendue, et `zoomToFit` s'occupe du cadre.
-    g.d3Force('center')?.strength(0.05);
+    // ⚠️ 0,05 convenait à vingt-deux nœuds TOUS reliés. Ici, une partie des cent n'a
+    // aucune arête dans les six cent quarante livrées : rien ne les retient, la
+    // répulsion les éjecte, et `zoomToFit` — qui les inclut — RÉTRÉCIT tout le reste
+    // pour les contenir. Le graphe paraissait tassé alors qu'il était étalé : c'est le
+    // cadrage qui rendait compte d'une dispersion invisible.
+    g.d3Force('center')?.strength(0.28);
     g.d3ReheatSimulation?.();
   }, []);
 
@@ -310,6 +359,24 @@ export function GraphCanvas({
   const montres = voisinage ? voisinage.size - 1 : 0;
 
   /**
+   * LE NOYAU RELIÉ — les nœuds qui portent au moins une arête.
+   *
+   * `graph_entry` livre cent nœuds ; les six cent quarante arêtes n'en touchent pas la
+   * totalité. Ceux qui restent sans lien ne sont retenus par rien et la répulsion les
+   * éloigne — puis `zoomToFit`, qui les inclut, RÉTRÉCIT tout le reste pour les
+   * contenir. Le graphe s'affichait au tiers de la place ; la disposition était bonne,
+   * c'est le cadre qui rendait compte d'une dispersion qu'on ne voyait même pas.
+   *
+   * On cadre donc sur le noyau. Les isolés restent DESSINÉS — ils ne disparaissent
+   * pas — ils cessent seulement de commander l'échelle de lecture des autres.
+   */
+  const noyau = useMemo(() => {
+    const s = new Set<string>();
+    for (const l of links) { s.add(bout(l.source)); s.add(bout(l.target)); }
+    return s;
+  }, [links]);
+
+  /**
    * ⚠️ L'OBJET PASSÉ À `graphData` DOIT GARDER SON IDENTITÉ ENTRE DEUX RENDUS.
    *
    * Écrit `graphData={{ nodes, links }}`, il est reconstruit à CHAQUE rendu — et
@@ -365,11 +432,42 @@ export function GraphCanvas({
           // vérifié : « cadrage à 22 nœuds » puis « cadrage à 64 nœuds », jamais un
           // cadrage sur le seul nœud cliqué.
           const v = voisinage;
-          fg.current?.zoomToFit?.(500, 60, v && v.size > 1 ? (n: any) => v.has(n.id) : undefined);
+          const filtre = v && v.size > 1
+            ? (n: any) => v.has(n.id)
+            : (noyau.size > 1 ? (n: any) => noyau.has(n.id) : undefined);
+          fg.current?.zoomToFit?.(500, 40, filtre);
+          /**
+           * SECOND CADRAGE, 500 ms PLUS TARD, ET UNE SEULE FOIS.
+           *
+           * `onEngineStop` se déclenche au tick 200 ; à cet instant les nœuds occupent
+           * encore une étendue plus large que celle où ils finissent. Le cadre était
+           * donc calculé sur une dispersion transitoire, et le graphe s'affichait au
+           * tiers de la place disponible — la disposition était bonne, c'est la MESURE
+           * de son étendue qui était prématurée.
+           *
+           * Le garde `cadre.current` est déjà posé plus haut : ce second appel ne peut
+           * pas se répéter, et il ne relance pas la simulation puisqu'il ne fait que
+           * déplacer la caméra.
+           */
+          setTimeout(() => fg.current?.zoomToFit?.(400, 40, filtre), 500);
         }}
         onNodeClick={auClic}
         nodeCanvasObject={(brut: any, ctx: CanvasRenderingContext2D, echelle: number) => {
           const n = brut as GraphNode & { x: number; y: number };
+
+          /**
+           * ⚠️ AUX PREMIÈRES IMAGES, UN NŒUD N'A PAS ENCORE DE COORDONNÉES.
+           *
+           * La simulation les assigne au premier tick ; avant, `n.x` et `n.y` valent
+           * `undefined`. `ctx.arc(NaN, …)` ne dit rien — il ne dessine simplement pas —
+           * mais `createRadialGradient(NaN, …)` LÈVE, et le halo a fait planter le
+           * canvas entier au montage. Le même appel invalide était déjà là avant, muet.
+           *
+           * Le garde n'est donc pas une précaution : c'est la reconnaissance qu'une
+           * API tolérante masquait une valeur invalide que la suivante refuse.
+           */
+          if (!Number.isFinite(n.x) || !Number.isFinite(n.y)) return;
+
           const r = RAYON[n.node_type] ?? 5;
           const c = COULEUR[n.node_type] ?? '#888';
 
@@ -385,12 +483,28 @@ export function GraphCanvas({
           const eteint = voisinage !== null && !voisinage.has(n.id);
           ctx.globalAlpha = eteint ? 0.15 : 1;
 
+          // HALO — un disque diffus sous le nœud. Il donne de la présence sans ajouter
+          // de sens : il ne code AUCUNE valeur, contrairement à un rayon ou une teinte.
+          // Sur un graphe qui refuse les dégradés de valeur, c'est la seule façon
+          // d'imposer au regard sans mentir sur ce qu'on mesure.
+          if (!eteint) {
+            const g = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, (RAYON[n.node_type] ?? 5) * 2.6);
+            g.addColorStop(0, `${c}33`);
+            g.addColorStop(1, `${c}00`);
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(n.x, n.y, (RAYON[n.node_type] ?? 5) * 2.6, 0, 2 * Math.PI);
+            ctx.fill();
+          }
+
           // Une porte est CREUSE : elle annonce un type, pas un fait mesuré sur ce
           // nœud-là. Le disque plein est réservé à ce que le corpus a réellement mis
           // au centre.
           ctx.beginPath();
           ctx.arc(n.x, n.y, r, 0, 2 * Math.PI);
-          if (n.porte) {
+          if (n.porte || n.role === 'pont') {
+            // Creux : « j'annonce une fonction, je ne rapporte pas un fait mesuré ».
+            // Même grammaire que les portes du point d'entrée précédent.
             ctx.fillStyle = PAPER; ctx.fill();
             ctx.strokeStyle = c; ctx.lineWidth = 2 / echelle; ctx.stroke();
           } else {
@@ -443,7 +557,7 @@ export function GraphCanvas({
             const taille = Math.max(10 / echelle, 2.5);
             ctx.font = `${n.porte ? 'italic ' : ''}${taille}px ui-sans-serif, system-ui`;
             ctx.textAlign = 'center';
-            const txt = n.label.length > 34 ? `${n.label.slice(0, 33)}…` : n.label;
+            const txt = n.label.length > 26 ? `${n.label.slice(0, 25)}…` : n.label;
             // Fond derrière le texte : sur un graphe dense, un libellé posé sur une
             // arête ou sur un autre libellé devient illisible sans qu'on sache pourquoi.
             if (ancre || voisinage?.has(n.id)) {

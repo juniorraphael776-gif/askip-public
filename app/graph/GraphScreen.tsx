@@ -26,7 +26,7 @@ export function GraphScreen({
   const surSelection = useCallback((n: GraphNode | null) => setChoisi(n), []);
 
   return (
-    <div className="mb-6 grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+    <div className="mb-6 grid gap-4 lg:grid-cols-[minmax(0,2.6fr)_minmax(0,1fr)]">
       <GraphCanvas nodes={nodes} links={links} lang={lang} limite={limite} onSelect={surSelection} />
       <EvidencePanel noeud={choisi} lang={lang} />
     </div>

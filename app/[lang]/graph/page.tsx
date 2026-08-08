@@ -25,7 +25,7 @@
  */
 import { notFound } from 'next/navigation';
 import { isLang, t, type Lang } from '@/lib/i18n';
-import { faults, getGraphDoors, getGraphMeta, getGraphTopNodes, getSearchFacets, searchEvidence } from '@/lib/queries';
+import { faults, getGraphEntry, getGraphEntryEdges, getGraphEntryMeta, getGraphMeta } from '@/lib/queries';
 import { type GraphLink, type GraphNode, type NodeType } from '@/app/graph/GraphCanvas';
 import { GraphScreen } from '@/app/graph/GraphScreen';
 import { EvidenceExplorer } from '@/app/graph/EvidenceExplorer';
@@ -41,16 +41,25 @@ export default async function Graph({ params }: { params: Promise<{ lang: string
   const L = lang as Lang;
   const fr = L === 'fr';
 
-  // L'explorateur est rendu AVEC ses premières lignes : un explorateur qui arrive
-  // vide et se remplit après coup se lit comme un corpus vide pendant une seconde —
-  // exactement ce que `/fr/evidence` affichait pour de bon avant la 053.
-  const [meta, top, portes, evs, facettes] = await Promise.all([
-    getGraphMeta(), getGraphTopNodes(), getGraphDoors(),
-    searchEvidence({ limit: 15 }), getSearchFacets(),
+  /**
+   * ⚠️ QUATRE LECTURES, PAS SIX. La concurrence n'est pas gratuite.
+   *
+   * Mesuré : lues une par une, `graph_entry_edges` répond en 717 ms et
+   * `graph_entry_meta` en 746 ms. Lancées à SIX en parallèle, les mêmes passent à
+   * 2 500 et 2 738 ms — et viennent buter sur le mur des trois secondes. Ce n'est pas
+   * le froid, c'est la rafale : chaque lecture supplémentaire ralentit toutes les
+   * autres, et `Promise.all` donne l'illusion que paralléliser est sans coût.
+   *
+   * Les deux lectures de l'explorateur sortent donc du rendu serveur. Il sait déjà se
+   * remplir depuis le navigateur — le chemin existe et il est éprouvé — alors que le
+   * graphe, lui, n'a rien à dessiner sans ses arêtes.
+   */
+  const [meta, entree, aretes, emeta] = await Promise.all([
+    getGraphMeta(), getGraphEntry(), getGraphEntryEdges(), getGraphEntryMeta(),
   ]);
   const pannes = faults();
 
-  if (!top?.length) {
+  if (!entree?.length) {
     return (
       <>
         <h1 className="mb-4 text-2xl font-bold" style={{ color: BORDEAUX }}>{t(L, 'nav_graph')}</h1>
@@ -59,39 +68,45 @@ export default async function Graph({ params }: { params: Promise<{ lang: string
     );
   }
 
-  const nodes: GraphNode[] = [
-    ...top.map((n) => ({
-      id: `${n.node_type}:${n.node_id}`,
-      node_type: n.node_type as NodeType,
-      node_id: n.node_id,
-      label: n.node_label,
-      degree_total: n.degree_total,
-      // Tous les nœuds du top 20 ont plus de voisins que le graphe n'en montrera :
-      // le plus petit est à 1 116 pour une limite de 50. La marque n'est donc pas
-      // supposée — elle est déduite d'un degré lu, comparé à la limite lue.
-      truncated: n.degree_total > (meta?.default_neighbor_limit ?? 50),
-    })),
-    ...portes.map((p) => ({
-      id: `${p.node_type}:${p.node_id}`,
-      node_type: p.node_type as NodeType,
-      node_id: p.node_id,
-      label: p.node_label,
-      degree_total: p.degree_total,
-      truncated: p.degree_total > (meta?.default_neighbor_limit ?? 50),
-      porte: true,
-    })),
-  ];
+  const nodes: GraphNode[] = entree.map((n) => ({
+    id: `${n.node_type}:${n.node_id}`,
+    node_type: n.node_type as NodeType,
+    node_id: n.node_id,
+    label: n.node_label,
+    role: n.role,
+    // ⚠️ PAS de marque de troncature ici. `graph_entry` ne porte pas de degré, et la
+    // déduire d'un rôle serait une supposition. L'arc apparaît au dépliage, sur
+    // `source_truncated` et `target_truncated` que `graph_neighbors` rend — c'est-à-dire
+    // sur une valeur lue. Un contour ouvert posé au jugé dirait un fait qu'on n'a pas.
+  }));
 
-  // AUCUNE arête au départ. Les liens du top 20 existent en base, mais les poser ici
-  // demanderait vingt appels à `graph_neighbors` au rendu — et donnerait un écran déjà
-  // saturé, où le clic n'aurait plus rien à révéler. Le graphe s'ouvre en constellation
-  // et se relie sous le curseur.
-  const links: GraphLink[] = [];
+  // LES ARÊTES SONT LIVRÉES, plus construites au clic. Le graphe s'ouvre RELIÉ — une
+  // seule composante connexe, vérifiée en base — au lieu d'une constellation de points
+  // isolés. Le dépliage garde tout son rôle : il va chercher les voisins ABSENTS des
+  // cent, et le clic reste ce qui révèle.
+  const links: GraphLink[] = (aretes ?? []).map((e) => ({
+    source: `${e.source_type}:${e.source_id}`,
+    target: `${e.target_type}:${e.target_id}`,
+    edge: e.edge,
+    weight: e.weight ?? undefined,
+  }));
 
   const seuil = meta?.comention_min_weight ?? null;
   const masquees = meta?.comention_pairs_hidden ?? null;
   const gardees = meta?.comention_pairs_kept ?? null;
   const limite = meta?.default_neighbor_limit ?? 50;
+  const ponts = entree.filter((n) => n.role === 'pont').length;
+  const NOM_T: Record<string, [string, string]> = {
+    disease: ['maladies', 'diseases'], location: ['pays', 'countries'],
+    researcher: ['chercheurs', 'researchers'], publication: ['publications', 'publications'],
+    evidence: ['evidences', 'evidence'],
+  };
+  // La composition est COMPTÉE sur les nœuds reçus, jamais recopiée depuis `nodes_by_type` :
+  // les deux devraient coïncider, et c'est la lecture qui décide si c'est le cas.
+  const parType = Object.entries(
+    entree.reduce<Record<string, number>>((a, n) => ({ ...a, [n.node_type]: (a[n.node_type] ?? 0) + 1 }), {}),
+  ).sort((a, b) => b[1] - a[1])
+   .map(([t, c]) => `${c} ${NOM_T[t]?.[fr ? 0 : 1] ?? t}`).join(', ');
 
   return (
     <>
@@ -99,8 +114,8 @@ export default async function Graph({ params }: { params: Promise<{ lang: string
         <h1 className="text-2xl font-bold" style={{ color: BORDEAUX }}>{t(L, 'nav_graph')}</h1>
         <p className="mt-1 text-sm" style={{ color: MUTED }}>
           {fr
-            ? 'Les vingt nœuds les plus reliés du corpus. Cliquer pour déplier.'
-            : 'The twenty most connected nodes in the corpus. Click to expand.'}
+            ? `${emeta?.nodes ?? nodes.length} nœuds équilibrés par type — maladies, pays, chercheurs, publications, evidences. Cliquer pour déplier.`
+            : `${emeta?.nodes ?? nodes.length} nodes balanced by type — diseases, countries, researchers, publications, evidence. Click to expand.`}
         </p>
       </header>
 
@@ -120,6 +135,13 @@ export default async function Graph({ params }: { params: Promise<{ lang: string
         </Note>
 
         <Note titre={fr ? 'Les relations masquées' : 'Hidden relationships'}>
+          {emeta && (
+            <>
+              {fr
+                ? <><strong style={{ color: INK }}>{emeta.edges_hidden.toLocaleString('fr-FR')}</strong> relations sur {(emeta.edges_shown + emeta.edges_hidden).toLocaleString('fr-FR')} ne sont pas dessinées : à l’entrée, deux entités ne sont reliées qu’à partir de <strong style={{ color: INK }}>{emeta.entry_min_comention_weight ?? '—'}</strong> publications partagées. </>
+                : <><strong style={{ color: INK }}>{emeta.edges_hidden.toLocaleString('en')}</strong> of {(emeta.edges_shown + emeta.edges_hidden).toLocaleString('en')} relationships are not drawn: at entry, two entities are linked only from <strong style={{ color: INK }}>{emeta.entry_min_comention_weight ?? '—'}</strong> shared publications upward. </>}
+            </>
+          )}
           {seuil === null ? (
             <span style={{ color: '#8C3A2E' }}>
               {fr
@@ -133,42 +155,31 @@ export default async function Graph({ params }: { params: Promise<{ lang: string
           )}
         </Note>
 
-        <Note titre={fr ? 'Pourquoi aucun chercheur au centre' : 'Why no researcher at the centre'}>
+        {/* ⚠️ CETTE NOTE DISAIT « pourquoi aucun chercheur au centre ». Elle est
+            devenue FAUSSE le jour où `graph_entry` en a placé quinze. Une note juste
+            qui survit au changement qu'elle décrivait devient un mensonge exact — et
+            personne ne relit les notes en changeant une requête. */}
+        <Note titre={fr ? 'Pourquoi ces cent nœuds' : 'Why these hundred nodes'}>
           {fr
-            ? 'La chaîne chercheur → publication → evidence ne couvre que 22,4 % du corpus. Les chercheurs sont donc réellement périphériques, et non masqués : le plus relié en compte '
-            : 'The researcher → publication → evidence chain covers only 22.4% of the corpus. Researchers are genuinely peripheral, not hidden: the most connected one has '}
-          <strong style={{ color: INK }}>
-            {portes.find((p) => p.node_type === 'researcher')?.degree_total.toLocaleString(fr ? 'fr-FR' : 'en') ?? '—'}
-          </strong>
-          {fr ? ' voisins quand le premier lieu en compte ' : ' neighbours where the top place has '}
-          <strong style={{ color: INK }}>{top[0].degree_total.toLocaleString(fr ? 'fr-FR' : 'en')}</strong>
-          {fr
-            ? '. Les nœuds au contour creux sont des portes vers ces régions du graphe.'
-            : '. Hollow-outlined nodes are doors into those regions of the graph.'}
+            ? <>Le classement par degré ne pouvait contenir <em>aucun</em> chercheur : la chaîne chercheur → publication → evidence ne couvre que 22,4 % du corpus, et leurs degrés sont deux ordres de grandeur sous ceux des pays. Ces cent nœuds sont donc <strong style={{ color: INK }}>équilibrés par type</strong> — {parType} — et {ponts} d’entre eux sont des <strong style={{ color: INK }}>ponts</strong>, dessinés creux : retenus non pour leur importance mais pour ce qu’ils relient. Sans eux, la chaîne des auteurs n’apparaîtrait pas du tout.</>
+            : <>A degree ranking could contain <em>no</em> researcher: the researcher → publication → evidence chain covers only 22.4% of the corpus, and their degrees are two orders of magnitude below those of countries. These hundred nodes are therefore <strong style={{ color: INK }}>balanced by type</strong> — {parType} — and {ponts} of them are <strong style={{ color: INK }}>bridges</strong>, drawn hollow: kept not for their importance but for what they connect. Without them the author chain would not appear at all.</>}
         </Note>
       </section>
 
       <div className="mb-6">
         <EvidenceExplorer
           lang={L}
-          initiales={(evs ?? []) as unknown as EvidenceRow[]}
-          initialTotal={evs?.[0]?.total_count ?? 0}
-          sections={[...new Set((facettes ?? []).map((f) => f.section))].filter(Boolean).sort()}
+          initiales={[] as EvidenceRow[]}
+          initialTotal={0}
+          sections={[]}
         />
       </div>
 
-      {portes.length > 0 && (
+      {emeta && (
         <p className="mt-3 text-[12px]" style={{ color: MUTED }}>
-          {fr ? 'Portes ouvertes : ' : 'Doors: '}
-          {portes.map((p, i) => (
-            <span key={p.node_id}>
-              {i > 0 && ' · '}
-              <em>{p.node_label}</em>
-              {' '}({p.degree_total.toLocaleString(fr ? 'fr-FR' : 'en')}
-              {fr ? ` voisins, un ${NOM[p.node_type]?.[0] ?? p.node_type} sur ` : ` neighbours, one ${NOM[p.node_type]?.[1] ?? p.node_type} of `}
-              {p.type_count.toLocaleString(fr ? 'fr-FR' : 'en')})
-            </span>
-          ))}
+          {fr
+            ? `Composition de l’entrée : ${parType}. ${ponts} ponts sur ${emeta.nodes}.`
+            : `Entry composition: ${parType}. ${ponts} bridges of ${emeta.nodes}.`}
         </p>
       )}
     </>
