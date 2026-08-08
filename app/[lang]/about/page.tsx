@@ -20,14 +20,14 @@ import { notFound } from 'next/navigation';
 import { isLang, t, type Lang } from '@/lib/i18n';
 import { faults, getCoverageReach, getFreshness, getOverview, getReferentialCoverage } from '@/lib/queries';
 import { Diagnostic, Empty, Freshness, num } from '@/app/ui';
-import { GOLD, INK, LINE, MUTED } from '@/lib/theme';
+import { BORDEAUX, GOLD, INK, LINE, MUTED } from '@/lib/theme';
 
 export const revalidate = 900;
 
 function Bloc({ titre, children }: { titre: string; children: React.ReactNode }) {
   return (
     <section className="mb-8">
-      <h2 className="mb-2 text-base font-bold" style={{ color: INK }}>{titre}</h2>
+      <h2 className="mb-2 text-base font-bold" style={{ color: BORDEAUX }}>{titre}</h2>
       <div className="space-y-2 text-[13px] leading-relaxed" style={{ color: MUTED }}>{children}</div>
     </section>
   );
@@ -63,7 +63,7 @@ export default async function About({ params }: { params: Promise<{ lang: string
   return (
     <>
       <header className="mb-6">
-        <h1 className="text-2xl font-bold" style={{ color: INK }}>{t(L, 'nav_about')}</h1>
+        <h1 className="text-2xl font-bold" style={{ color: BORDEAUX }}>{t(L, 'nav_about')}</h1>
       </header>
 
       {pannes.length > 0 && <div className="mb-4"><Diagnostic lang={L} faults={pannes} partial /></div>}

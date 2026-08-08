@@ -15,10 +15,11 @@
  * pas est la même faute que d'afficher une prévalence qu'on ne sait pas qualifier.
  */
 import { notFound } from 'next/navigation';
+import { DefisConnus } from '@/app/challenges-link';
 import { isLang, t, type Lang } from '@/lib/i18n';
 import { faults, getEvidenceOrigin, getResearchers } from '@/lib/queries';
 import { CountBar, Diagnostic, Empty, MethodBanner, Note, Section, Stat, num } from '@/app/ui';
-import { INK, LINE, MUTED } from '@/lib/theme';
+import { BORDEAUX, INK, LINE, MUTED } from '@/lib/theme';
 
 export const revalidate = 900;
 
@@ -42,7 +43,7 @@ export default async function Researchers({ params }: { params: Promise<{ lang: 
   return (
     <>
       <header className="mb-6">
-        <h1 className="text-2xl font-bold" style={{ color: INK }}>{t(L, 'nav_researchers')}</h1>
+        <h1 className="text-2xl font-bold" style={{ color: BORDEAUX }}>{t(L, 'nav_researchers')}</h1>
         <p className="mt-1 text-sm" style={{ color: MUTED }}>
           {L === 'fr'
             ? 'Chercheurs identifiés par ORCID vérifié, et publications qui leur sont rattachées.'
@@ -50,11 +51,7 @@ export default async function Researchers({ params }: { params: Promise<{ lang: 
         </p>
       </header>
 
-      <MethodBanner text={
-        L === 'fr'
-          ? "Cette page est bibliographique : elle montre ce qu'une personne a publié, pas ce qu'elle « sait ». ASKIP n'affirme pas qu'un chercheur produit de la connaissance sur telle maladie dans tel pays — le graphe de connaissance s'en abstient explicitement, et cette page s'aligne."
-          : 'This page is bibliographic: it shows what a person has published, not what they “know”. ASKIP does not assert that a researcher produces knowledge on a given disease in a given country — the knowledge graph explicitly abstains, and this page follows.'
-      } />
+      <DefisConnus lang={L} />
 
       <section className="mb-10 grid grid-cols-2 gap-3 md:grid-cols-3">
         <Stat label={t(L, 'kpi_researchers')} value={num(people.length, L)} hint="ORCID" />

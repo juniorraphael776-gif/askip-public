@@ -23,7 +23,7 @@
 import { useEffect } from 'react';
 import type { GraphNode } from '@/app/graph/GraphCanvas';
 import { ListeEvidences, useEvidences } from '@/app/graph/evidence';
-import { GOLD, INK, LINE, MUTED } from '@/lib/theme';
+import { BORDEAUX, GOLD, INK, LINE, MUTED } from '@/lib/theme';
 
 /** Les deux seuls types que `search_evidence` sait filtrer. Vérifié en base. */
 function pont(n: GraphNode): { topic?: string; country?: string } | null {
@@ -59,7 +59,7 @@ export function EvidencePanel({ noeud, lang }: { noeud: GraphNode | null; lang: 
       <header className="mb-2 border-b pb-2" style={{ borderColor: LINE }}>
         {noeud ? (
           <>
-            <h2 className="text-sm font-bold" style={{ color: INK }}>{noeud.label}</h2>
+            <h2 className="text-sm font-bold" style={{ color: BORDEAUX }}>{noeud.label}</h2>
             <p className="text-[11px]" style={{ color: MUTED }}>
               {p
                 ? (fr
@@ -70,7 +70,7 @@ export function EvidencePanel({ noeud, lang }: { noeud: GraphNode | null; lang: 
           </>
         ) : (
           <>
-            <h2 className="text-sm font-bold" style={{ color: INK }}>
+            <h2 className="text-sm font-bold" style={{ color: BORDEAUX }}>
               {fr ? 'Evidences du nœud' : 'Evidence for the node'}
             </h2>
             <p className="text-[11px]" style={{ color: MUTED }}>

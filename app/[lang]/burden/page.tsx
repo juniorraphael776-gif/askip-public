@@ -17,10 +17,11 @@
  * Le mot « carte » désigne l'écran, pas une projection géographique.
  */
 import { notFound } from 'next/navigation';
+import { DefisConnus } from '@/app/challenges-link';
 import { isLang, t, type Lang } from '@/lib/i18n';
 import { faults, getBurdenCanonical, getFreshness } from '@/lib/queries';
 import { CountBar, Diagnostic, Empty, Freshness, MethodBanner, Note, Section, Stat, num } from '@/app/ui';
-import { GOLD, INK, LINE, MUTED } from '@/lib/theme';
+import { BORDEAUX, GOLD, INK, LINE, MUTED } from '@/lib/theme';
 import { ValidationTierNotice } from '@/app/notice-validation';
 
 export const revalidate = 900;
@@ -66,7 +67,7 @@ export default async function Burden({ params }: { params: Promise<{ lang: strin
   return (
     <>
       <header className="mb-6">
-        <h1 className="text-2xl font-bold" style={{ color: INK }}>
+        <h1 className="text-2xl font-bold" style={{ color: BORDEAUX }}>
           {fr ? 'Charge de morbidité documentée' : 'Documented disease burden'}
         </h1>
         <p className="mt-1 text-sm" style={{ color: MUTED }}>
@@ -86,7 +87,7 @@ export default async function Burden({ params }: { params: Promise<{ lang: strin
           : 'These maps show where research happens as much as where disease is. A country comes either from the study text or from an inferred link — MeSH indexing, document context, or author affiliation. The last is the least reliable. Each cell shows the exact ratio: a country that stands out here is one that publishes, not necessarily one that is more affected.'
       } />
 
-      <ValidationTierNotice lang={L} />
+      <DefisConnus lang={L} texte={fr ? 'Ce que cette carte ne dit pas' : 'What this map does not say'} />
 
       <section className="mb-10 grid grid-cols-2 gap-3 md:grid-cols-4">
         <Stat label={fr ? 'Couples pays × maladie' : 'Country × disease pairs'} value={num(rows.length, L)} />

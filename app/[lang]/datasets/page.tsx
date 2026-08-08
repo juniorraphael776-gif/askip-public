@@ -29,7 +29,7 @@ import { notFound } from 'next/navigation';
 import { isLang, t, type Lang } from '@/lib/i18n';
 import { faults, getCoverageReach, getFreshness, getOverview, getReferentialCoverage } from '@/lib/queries';
 import { Diagnostic, Empty, num } from '@/app/ui';
-import { GOLD, INK, LINE, MUTED } from '@/lib/theme';
+import { BORDEAUX, GOLD, INK, LINE, MUTED } from '@/lib/theme';
 
 export const revalidate = 900;
 
@@ -83,7 +83,7 @@ export default async function Datasets({ params }: { params: Promise<{ lang: str
   return (
     <>
       <header className="mb-6">
-        <h1 className="text-2xl font-bold" style={{ color: INK }}>{t(L, 'nav_datasets')}</h1>
+        <h1 className="text-2xl font-bold" style={{ color: BORDEAUX }}>{t(L, 'nav_datasets')}</h1>
         <p className="mt-1 text-sm" style={{ color: MUTED }}>
           {fr
             ? 'La fiche du corpus, autoportante : elle se lit sans ouvrir aucune autre page.'
@@ -94,7 +94,7 @@ export default async function Datasets({ params }: { params: Promise<{ lang: str
       {pannes.length > 0 && <div className="mb-4"><Diagnostic lang={L} faults={pannes} partial /></div>}
 
       <section className="mb-8 rounded-lg p-4" style={{ border: `1px solid ${LINE}`, background: '#FFFDF8' }}>
-        <h2 className="mb-2 text-sm font-bold" style={{ color: INK }}>
+        <h2 className="mb-2 text-sm font-bold" style={{ color: BORDEAUX }}>
           {fr ? 'Identification' : 'Identification'}
         </h2>
         {/* ⚠️ LE NOM VIENT DU DÉPÔT, PAS DU PORTAIL.
@@ -153,7 +153,7 @@ export default async function Datasets({ params }: { params: Promise<{ lang: str
           Voir l'en-tête du fichier : un lecteur venu de Zenodo n'ouvrira pas
           « À propos ». Ce qui n'est pas ici n'est pas publié pour lui. */}
       <section className="mb-8">
-        <h2 className="mb-1 text-sm font-bold" style={{ color: INK }}>
+        <h2 className="mb-1 text-sm font-bold" style={{ color: BORDEAUX }}>
           {fr ? 'Les trois limites à connaître avant d’utiliser ces données' : 'The three limitations to know before using this data'}
         </h2>
         <p className="mb-3 text-[12px]" style={{ color: MUTED }}>
@@ -216,7 +216,7 @@ export default async function Datasets({ params }: { params: Promise<{ lang: str
       </section>
 
       <section className="mb-8">
-        <h2 className="mb-2 text-sm font-bold" style={{ color: INK }}>{fr ? 'Citer ce corpus' : 'Citing this corpus'}</h2>
+        <h2 className="mb-2 text-sm font-bold" style={{ color: BORDEAUX }}>{fr ? 'Citer ce corpus' : 'Citing this corpus'}</h2>
         <pre className="overflow-x-auto rounded p-3 text-[12px]" style={{ background: '#FFF9EE', border: `1px solid ${LINE}`, color: INK }}>
 {fr
   ? `ASKIP (African Sovereign Knowledge Infrastructure Program).

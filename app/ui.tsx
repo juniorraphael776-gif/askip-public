@@ -12,7 +12,7 @@
  */
 import type { ReactNode } from 'react';
 import type { Lang } from '@/lib/i18n';
-import { CARD, GOLD, GREEN, INK, LINE, MUTED } from '@/lib/theme';
+import { BORDEAUX, CARD, GOLD, INK, LINE, MUTED } from '@/lib/theme';
 
 export const num = (v: number | null | undefined, lang: 'fr' | 'en' = 'fr'): string =>
   v === null || v === undefined ? '—' : v.toLocaleString(lang === 'fr' ? 'fr-FR' : 'en-US').replace(/ | /g, ' ');
@@ -20,7 +20,7 @@ export const num = (v: number | null | undefined, lang: 'fr' | 'en' = 'fr'): str
 export function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
   return (
     <section className="mb-12">
-      <h2 className="mb-1 text-lg font-semibold" style={{ color: INK }}>{title}</h2>
+      <h2 className="mb-1 text-lg font-semibold" style={{ color: BORDEAUX }}>{title}</h2>
       {hint ? <p className="mb-4 text-[13px]" style={{ color: MUTED }}>{hint}</p> : <div className="mb-4" />}
       {children}
     </section>
@@ -43,8 +43,8 @@ export function CountBar({ label, value, max, href, lang = 'fr' }: { label: stri
   const inner = (
     <>
       <span className="min-w-0 flex-1 truncate">{label}</span>
-      <span className="h-2 w-28 shrink-0 overflow-hidden rounded-full sm:w-48" style={{ background: '#EFECE3' }}>
-        <i className="block h-full rounded-full" style={{ width: `${pct}%`, background: GREEN }} />
+      <span className="h-2 w-28 shrink-0 overflow-hidden rounded-full sm:w-48" style={{ background: '#EDE7DC' }}>
+        <i className="block h-full rounded-full" style={{ width: `${pct}%`, background: GOLD }} />
       </span>
       <span className="w-20 shrink-0 text-right tabular-nums" style={{ color: MUTED }}>{num(value, lang)}</span>
     </>
@@ -62,14 +62,14 @@ export function YearBars({ data, undated, undatedLabel, lang }: { data: { year: 
       <div className="flex items-end gap-[3px] overflow-x-auto pb-1" style={{ height: 120 }}>
         {data.map((d) => (
           <div key={d.year} className="flex w-6 shrink-0 flex-col items-center justify-end gap-1" title={`${d.year} : ${num(d.observations, lang)}`}>
-            <i className="w-full rounded-t" style={{ height: `${Math.max(2, (d.observations / max) * 96)}px`, background: GREEN }} />
+            <i className="w-full rounded-t" style={{ height: `${Math.max(2, (d.observations / max) * 96)}px`, background: GOLD }} />
             <span className="text-[9px] tabular-nums" style={{ color: MUTED }}>{String(d.year).slice(2)}</span>
           </div>
         ))}
       </div>
       {/* La part non datée est affichée À CÔTÉ, jamais fondue dans l'histogramme :
           69 % des observations n'ont pas d'année, les inclure fausserait la lecture. */}
-      <div className="mt-3 rounded-lg px-3 py-2 text-[13px]" style={{ background: '#F5F2EA', border: `1px solid ${LINE}`, color: MUTED }}>
+      <div className="mt-3 rounded-lg px-3 py-2 text-[13px]" style={{ background: '#F1EADD', border: `1px solid ${LINE}`, color: MUTED }}>
         <strong style={{ color: GOLD }}>{num(undated, lang)}</strong> {undatedLabel}
       </div>
     </div>
@@ -83,7 +83,7 @@ export function Note({ children }: { children: ReactNode }) {
 /** Bandeau méthodologique — permanent, pas repliable. */
 export function MethodBanner({ text }: { text: string }) {
   return (
-    <aside className="mb-10 rounded-lg p-4 text-[13px] leading-relaxed" style={{ background: '#F5F2EA', border: `1px solid ${LINE}`, color: INK }}>
+    <aside className="mb-10 rounded-lg p-4 text-[13px] leading-relaxed" style={{ background: '#F1EADD', border: `1px solid ${LINE}`, color: INK }}>
       {text}
     </aside>
   );
@@ -96,7 +96,7 @@ export function MethodBanner({ text }: { text: string }) {
  */
 export function KeyFact({ title, value, body }: { title: string; value: string; body: string }) {
   return (
-    <aside className="rounded-lg p-5" style={{ background: '#FFF4E0', border: `1px solid ${GOLD}` }}>
+    <aside className="rounded-lg p-5" style={{ background: '#FBF3E2', border: `1px solid ${GOLD}` }}>
       <div className="text-[13px] font-semibold uppercase tracking-wide" style={{ color: GOLD }}>{title}</div>
       <div className="mt-1 text-3xl font-bold tabular-nums" style={{ color: INK }}>{value}</div>
       <p className="mt-2 max-w-3xl text-[13px] leading-relaxed" style={{ color: INK }}>{body}</p>

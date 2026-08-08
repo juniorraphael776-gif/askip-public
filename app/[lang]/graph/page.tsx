@@ -31,7 +31,7 @@ import { GraphScreen } from '@/app/graph/GraphScreen';
 import { EvidenceExplorer } from '@/app/graph/EvidenceExplorer';
 import type { EvidenceRow } from '@/app/graph/evidence';
 import { Diagnostic } from '@/app/ui';
-import { GOLD, INK, LINE, MUTED } from '@/lib/theme';
+import { BORDEAUX, GOLD, INK, LINE, MUTED } from '@/lib/theme';
 
 export const revalidate = 900;
 
@@ -53,7 +53,7 @@ export default async function Graph({ params }: { params: Promise<{ lang: string
   if (!top?.length) {
     return (
       <>
-        <h1 className="mb-4 text-2xl font-bold" style={{ color: INK }}>{t(L, 'nav_graph')}</h1>
+        <h1 className="mb-4 text-2xl font-bold" style={{ color: BORDEAUX }}>{t(L, 'nav_graph')}</h1>
         <Diagnostic lang={L} faults={pannes} />
       </>
     );
@@ -96,7 +96,7 @@ export default async function Graph({ params }: { params: Promise<{ lang: string
   return (
     <>
       <header className="mb-5">
-        <h1 className="text-2xl font-bold" style={{ color: INK }}>{t(L, 'nav_graph')}</h1>
+        <h1 className="text-2xl font-bold" style={{ color: BORDEAUX }}>{t(L, 'nav_graph')}</h1>
         <p className="mt-1 text-sm" style={{ color: MUTED }}>
           {fr
             ? 'Les vingt nœuds les plus reliés du corpus. Cliquer pour déplier.'

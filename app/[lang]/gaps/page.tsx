@@ -19,10 +19,11 @@
  * n'est pas la même chose qu'être ancien.
  */
 import { notFound } from 'next/navigation';
+import { DefisConnus } from '@/app/challenges-link';
 import { isLang, t, type Lang } from '@/lib/i18n';
 import { faults, getAllCountryQuality, getCoverageReach, getFreshness, getGaps, getIndicators, getOverview, getScopeReach, getTopicReach, getUnlocatedBySection, type GapCell, type GapSection, type GapState } from '@/lib/queries';
 import { Diagnostic, Empty, Freshness, KeyFact, MethodBanner, Note, Section, num } from '@/app/ui';
-import { GAP_STATE, GOLD, INK, LINE, MUTED } from '@/lib/theme';
+import { BORDEAUX, GAP_STATE, GOLD, INK, LINE, MUTED } from '@/lib/theme';
 
 export const revalidate = 900;
 
@@ -82,7 +83,7 @@ export default async function Gaps({ params }: { params: Promise<{ lang: string 
   return (
     <>
       <header className="mb-6">
-        <h1 className="text-2xl font-bold" style={{ color: INK }}>{t(L, 'nav_gaps')}</h1>
+        <h1 className="text-2xl font-bold" style={{ color: BORDEAUX }}>{t(L, 'nav_gaps')}</h1>
         <p className="mt-1 text-sm" style={{ color: MUTED }}>
           {L === 'fr'
             ? `Mesuré contre un périmètre déclaré de ${countries.length} pays, curé à la main, en trois sections qui ne s’additionnent pas.`
@@ -116,11 +117,7 @@ export default async function Gaps({ params }: { params: Promise<{ lang: string 
         </div>
       ) : null}
 
-      <MethodBanner text={
-        L === 'fr'
-          ? "Une cellule vide signifie « aucune observation dans ce corpus », jamais « aucune donnée au monde ». Le périmètre est une décision publiée : ce qui n'y figure pas n'est pas un manque, c'est un choix. Les manques d'INDICATEUR (prévalence, couverture vaccinale…) ne sont pas mesurables aujourd'hui — voir plus bas."
-          : "An empty cell means “no observation in this corpus”, never “no data anywhere”. The scope is a published decision: what is not in it is not a gap, it is a choice. INDICATOR gaps (prevalence, vaccination coverage…) cannot be measured yet — see below."
-      } />
+      <DefisConnus lang={L} />
 
       {freshness ? (
         <Freshness lang={L} at={freshness.generated_at} isStale={freshness.is_stale} />

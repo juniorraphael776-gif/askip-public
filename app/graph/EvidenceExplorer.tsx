@@ -13,7 +13,7 @@
  */
 import { useEffect, useState } from 'react';
 import { ListeEvidences, useEvidences, type EvidenceRow } from '@/app/graph/evidence';
-import { GOLD, INK, LINE, MUTED } from '@/lib/theme';
+import { BORDEAUX, GOLD, INK, LINE, MUTED, PAPER } from '@/lib/theme';
 
 export function EvidenceExplorer({
   lang, initiales, initialTotal, sections,
@@ -64,7 +64,7 @@ export function EvidenceExplorer({
     <section className="rounded-lg p-4" style={{ border: `1px solid ${LINE}`, background: '#FFFFFF' }}>
       <header className="mb-3 flex flex-wrap items-baseline justify-between gap-2 border-b pb-3" style={{ borderColor: LINE }}>
         <div>
-          <h2 className="text-sm font-bold" style={{ color: INK }}>
+          <h2 className="text-sm font-bold" style={{ color: BORDEAUX }}>
             {fr ? 'Explorer le corpus' : 'Explore the corpus'}
           </h2>
           <p className="text-[11px]" style={{ color: MUTED }}>
@@ -79,13 +79,13 @@ export function EvidenceExplorer({
             onChange={(e) => { setVierge(false); setQ(e.target.value); }}
             placeholder={fr ? 'chercher dans les claims…' : 'search claims…'}
             className="rounded px-2 py-1 text-[13px] outline-none"
-            style={{ border: `1px solid ${LINE}`, color: INK, minWidth: '16rem', background: '#FCFAF5' }}
+            style={{ border: `1px solid ${LINE}`, color: INK, minWidth: '16rem', background: PAPER }}
           />
           <select
             value={section ?? ''}
             onChange={(e) => { setVierge(false); setSection(e.target.value || null); }}
             className="rounded px-2 py-1 text-[12px]"
-            style={{ border: `1px solid ${LINE}`, color: MUTED, background: '#FCFAF5' }}
+            style={{ border: `1px solid ${LINE}`, color: MUTED, background: PAPER }}
           >
             <option value="">{fr ? 'toutes sections' : 'all sections'}</option>
             {sections.map((s) => <option key={s} value={s}>{s}</option>)}

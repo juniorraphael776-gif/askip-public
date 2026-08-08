@@ -7,10 +7,11 @@
  * est un cul-de-sac que le lecteur ne peut ni vérifier ni contester.
  */
 import { notFound } from 'next/navigation';
+import { DefisConnus } from '@/app/challenges-link';
 import { isLang, t, type Lang } from '@/lib/i18n';
 import { getCountryTotals, getDiseaseTotals, getFreshness, getOverview, getTimeline } from '@/lib/queries';
 import { CountBar, Empty, Freshness, MethodBanner, Note, Section, Stat, Tier, YearBars, num } from '@/app/ui';
-import { GOLD, INK, LINE, MUTED } from '@/lib/theme';
+import { BORDEAUX, GOLD, INK, LINE, MUTED } from '@/lib/theme';
 import { CountsDropNotice } from '@/app/notice';
 import { ValidationTierNotice } from '@/app/notice-validation';
 
@@ -46,11 +47,10 @@ export default async function Overview({ params }: { params: Promise<{ lang: str
   return (
     <>
       <header className="mb-8">
-        <h1 className="text-2xl font-bold" style={{ color: INK }}>{t(L, 'title')}</h1>
+        <h1 className="text-2xl font-bold" style={{ color: BORDEAUX }}>{t(L, 'title')}</h1>
         <p className="mt-1 text-sm" style={{ color: MUTED }}>{t(L, 'tagline')}</p>
       </header>
 
-      <MethodBanner text={t(L, 'method_note')} />
 
       {/* ── LES DEUX `KeyFact` ONT ÉTÉ RETIRÉS D'ICI, PAS SUPPRIMÉS ──────────────
           « 15 472 observations n'entrent dans aucune carte » et « 34 155 ne portent
@@ -75,8 +75,7 @@ export default async function Overview({ params }: { params: Promise<{ lang: str
         <Stat label={t(L, 'kpi_publications')} value={num(o.publications, L)} hint={`${num(o.publications_with_doi, L)} DOI`} />
         <Stat label={t(L, 'kpi_researchers')} value={num(o.researchers, L)} />
       </section>
-      <ValidationTierNotice lang={L} />
-      <CountsDropNotice lang={L} />
+      <DefisConnus lang={L} />
 
 
       <Section title={t(L, 'by_country')} hint={`${t(L, 'activity_axis')} · ${t(L, 'gold_tier')}`}>

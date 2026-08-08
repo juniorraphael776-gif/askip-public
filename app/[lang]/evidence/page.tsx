@@ -14,7 +14,7 @@ import { notFound } from 'next/navigation';
 import { isLang, t, type Lang } from '@/lib/i18n';
 import { faults, getSearchFacets, searchEvidence } from '@/lib/queries';
 import { Empty, MethodBanner, Note, Section, num, Diagnostic } from '@/app/ui';
-import { GOLD, INK, LINE, MUTED, SECTION_TINT } from '@/lib/theme';
+import { BORDEAUX, GOLD, INK, LINE, MUTED, SECTION_TINT } from '@/lib/theme';
 
 export const revalidate = 300;
 
@@ -52,7 +52,7 @@ export default async function Explorer({
   return (
     <>
       <header className="mb-6">
-        <h1 className="text-2xl font-bold" style={{ color: INK }}>{t(L, 'nav_explorer')}</h1>
+        <h1 className="text-2xl font-bold" style={{ color: BORDEAUX }}>{t(L, 'nav_explorer')}</h1>
         <p className="mt-1 text-sm" style={{ color: MUTED }}>
           {L === 'fr'
             ? 'Palier Gold : evidences validées mécaniquement, avec leur source primaire.'

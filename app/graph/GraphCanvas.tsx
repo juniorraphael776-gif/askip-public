@@ -37,7 +37,7 @@
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { db } from '@/lib/supabase-public';
-import { GOLD, INK, LINE, MUTED } from '@/lib/theme';
+import { GOLD, INK, LINE, MUTED, PAPER } from '@/lib/theme';
 
 const ForceGraph2D = dynamic(() => import('react-force-graph-2d'), { ssr: false });
 
@@ -329,14 +329,14 @@ export function GraphCanvas({
   const donnees = useMemo(() => ({ nodes, links }), [nodes, links]);
 
   return (
-    <div ref={boite} className="w-full overflow-hidden rounded-lg" style={{ border: `1px solid ${LINE}`, background: '#FCFAF5' }}>
+    <div ref={boite} className="w-full overflow-hidden rounded-lg" style={{ border: `1px solid ${LINE}`, background: PAPER }}>
       <style>{'@keyframes askip-pulse{0%,100%{opacity:1}50%{opacity:.45}}'}</style>
       <ForceGraph2D
         ref={fg}
         graphData={donnees}
         width={largeur}
         height={hauteur}
-        backgroundColor="#FCFAF5"
+        backgroundColor={PAPER}
         linkColor={(l: any) =>
           !voisinage ? '#CFC8BA'
             : (bout(l.source) === choisi!.id || bout(l.target) === choisi!.id) ? '#8C8579' : '#EDE9E0'}
@@ -391,7 +391,7 @@ export function GraphCanvas({
           ctx.beginPath();
           ctx.arc(n.x, n.y, r, 0, 2 * Math.PI);
           if (n.porte) {
-            ctx.fillStyle = '#FCFAF5'; ctx.fill();
+            ctx.fillStyle = PAPER; ctx.fill();
             ctx.strokeStyle = c; ctx.lineWidth = 2 / echelle; ctx.stroke();
           } else {
             ctx.fillStyle = c; ctx.fill();
@@ -448,10 +448,10 @@ export function GraphCanvas({
             // arête ou sur un autre libellé devient illisible sans qu'on sache pourquoi.
             if (ancre || voisinage?.has(n.id)) {
               const l = ctx.measureText(txt).width;
-              ctx.fillStyle = 'rgba(252,250,245,0.82)';
+              ctx.fillStyle = 'rgba(247,244,239,0.85)';
               ctx.fillRect(n.x - l / 2 - 1, n.y + r + 2, l + 2, taille + 2);
             }
-            ctx.fillStyle = ancre ? '#2A2620' : '#6B655C';
+            ctx.fillStyle = ancre ? INK : MUTED;
             ctx.fillText(txt, n.x, n.y + r + taille + 2);
           }
 

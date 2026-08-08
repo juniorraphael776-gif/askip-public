@@ -5,11 +5,15 @@
  * Thème CLAIR : ce portail est lu, imprimé et projeté par des décideurs.
  * Le sombre de Tower est un choix d'outil de supervision.
  */
+/* Les jetons de la charte. `lib/theme.ts` en est le miroir pour le TSX ; les deux
+   doivent rester d'accord, et c'est ici la source lisible par le CSS. */
 :root {
-  --paper: #FBFAF7;
-  --ink: #061C15;
-  --gold: #B8860B;
-  --line: #E4E0D6;
+  --bordeaux: #5A0F16;
+  --gold:     #C49A2C;
+  --paper:    #F7F4EF;
+  --ink:      #1A1A1A;
+  --line:     #E5DED2;
+  --muted:    #6B635A;
 }
 
 html { color-scheme: light; }
@@ -21,7 +25,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-::selection { background: rgba(184, 134, 11, 0.25); }
+::selection { background: rgba(196, 154, 44, 0.28); }
 
 @media print {
   nav, .no-print { display: none; }

@@ -9,10 +9,11 @@
  * plus documentée ». La distinction est tout le projet.
  */
 import { notFound } from 'next/navigation';
+import { DefisConnus } from '@/app/challenges-link';
 import { isLang, t, type Lang } from '@/lib/i18n';
 import { faults, getCountryProfile, getCountryQuality, getGridCountries, getReferentialCoverage } from '@/lib/queries';
 import { CountBar, Empty, MethodBanner, Note, Section, Stat, num, Diagnostic } from '@/app/ui';
-import { GOLD, INK, LINE, MUTED } from '@/lib/theme';
+import { BORDEAUX, GOLD, INK, LINE, MUTED } from '@/lib/theme';
 import { CountsDropNotice } from '@/app/notice';
 import { ValidationTierNotice } from '@/app/notice-validation';
 
@@ -53,14 +54,13 @@ export default async function Country({ params }: { params: Promise<{ lang: stri
         <a href={`/${L}`} className="hover:underline" style={{ color: MUTED }}>← {t(L, 'back')}</a>
       </p>
       <header className="mb-6">
-        <h1 className="text-2xl font-bold" style={{ color: INK }}>{country}</h1>
+        <h1 className="text-2xl font-bold" style={{ color: BORDEAUX }}>{country}</h1>
         <p className="mt-1 text-sm" style={{ color: MUTED }}>
           {t(L, 'country_profile')} · {num(total, L)} {t(L, 'observations')} · {rows.length} {t(L, 'diseases_documented')}
           {span ? ` · ${span}` : ''}
         </p>
       </header>
 
-      <MethodBanner text={t(L, 'method_note')} />
 
       {/* La confiance AVANT le contenu. */}
       {quality ? (
@@ -80,8 +80,7 @@ export default async function Country({ params }: { params: Promise<{ lang: stri
           </Note>
         </Section>
       ) : null}
-      <ValidationTierNotice lang={L} />
-      <CountsDropNotice lang={L} />
+      <DefisConnus lang={L} />
 
 
       <Section title={L === 'fr' ? 'Maladies documentées' : 'Documented diseases'} hint={t(L, 'activity_axis')}>

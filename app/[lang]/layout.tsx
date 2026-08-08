@@ -1,6 +1,7 @@
+import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { isLang, other, t, type Lang } from '@/lib/i18n';
-import { GOLD, INK, LINE, MUTED } from '@/lib/theme';
+import { BORDEAUX, GOLD, INK, LINE, MUTED, PAPER } from '@/lib/theme';
 
 export async function generateStaticParams() { return [{ lang: 'fr' }, { lang: 'en' }]; }
 
@@ -13,10 +14,30 @@ export default async function LangLayout({
 
   return (
     <div className="min-h-screen">
-      <nav className="border-b" style={{ borderColor: LINE }}>
-        <div className="mx-auto flex max-w-6xl flex-wrap items-baseline gap-x-6 gap-y-2 px-5 py-4">
-          <a href={`/${L}`} className="text-base font-bold" style={{ color: INK }}>
-            ASKIP<span style={{ color: GOLD }}>.</span>
+      {/* ── L'EN-TÊTE PORTE LE LOGO, PLUS UN MOT COMPOSÉ ────────────────────
+          Le portail écrivait « ASKIP. » en texte. Le logo existe, il porte la
+          silhouette africaine et le graphe à trois nœuds — c'est-à-dire ce que le
+          site fait — et le texte n'en disait rien.
+
+          Le sous-titre est le nom complet du DÉPÔT, espacé : « AFRICAN SOVEREIGN
+          KNOWLEDGE INFRASTRUCTURE PROGRAM ». ⚠️ Un des trois fichiers de logo écrit
+          « SOVEREEIGN » avec deux E ; il a été écarté, et le sous-titre est du TEXTE
+          et non une image — une faute dans du texte se corrige, une faute dans un
+          PNG se redéploie. */}
+      <nav className="border-b" style={{ borderColor: LINE, background: PAPER }}>
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-3 px-5 py-3">
+          <a href={`/${L}`} className="flex items-center gap-3" aria-label="ASKIP">
+            <Image src="/askip-emblem.png" alt="" width={475} height={428}
+                   priority className="h-9 w-auto" />
+            <span className="hidden sm:block">
+              <span className="block text-lg font-bold leading-none tracking-tight" style={{ color: BORDEAUX }}>
+                ASKIP
+              </span>
+              <span className="mt-1 block text-[8.5px] font-semibold leading-tight"
+                    style={{ color: MUTED, letterSpacing: '0.14em' }}>
+                AFRICAN SOVEREIGN KNOWLEDGE<br />INFRASTRUCTURE PROGRAM
+              </span>
+            </span>
           </a>
           {/* OSSATURE. Le premier mot rencontré est « Graphe de connaissance » : c'est
               ce que le portail donne à voir, et l'ordre le dit avant tout texte.
