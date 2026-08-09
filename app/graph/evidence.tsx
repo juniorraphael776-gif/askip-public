@@ -100,7 +100,7 @@ export async function chercherEvidences(
       const prov = new Map<string, Provenance>();
       if (lignes.length) {
         const { data: src } = await db.from('evidence_source')
-          .select('evidence_id, source_url, source_path, n_evidences, n_evidences_gold')
+          .select('evidence_id, source_url, source_path, doi, n_evidences, n_evidences_gold')
           .in('evidence_id', lignes.map((l) => l.evidence_id));
         for (const r of (src ?? []) as Provenance[]) prov.set(r.evidence_id, r);
       }
@@ -150,6 +150,26 @@ export function LigneEvidence({ e, lang, prov }: { e: EvidenceRow; lang: 'fr' | 
    */
   const n = prov?.n_evidences_gold ?? null;
 
+  /**
+   * LE DOI RESTE VISIBLE, MÊME QUAND LA LIGNE MÈNE AILLEURS.
+   *
+   * En faisant passer `source_url` devant, j'avais retiré la mention « DOI » — en
+   * supposant qu'elle faisait doublon. Mesuré : sur 400 lignes portant un DOI,
+   * 329 ont bien `source_url = https://doi.org/<doi>`, mais 71 pointent AILLEURS,
+   * vers la page d'un éditeur. Sur celles-là, l'identifiant pérenne avait purement
+   * disparu de l'écran.
+   *
+   * Un DOI n'est pas qu'un lien : c'est la référence qu'on recopie dans une
+   * bibliographie. Il est donc affiché dès qu'il existe, et il ne l'est PAS quand la
+   * ligne y mène déjà — deux fois la même cible ferait douter qu'elles diffèrent.
+   */
+  // `prov.doi` d'abord : `search_evidence` rend un DOI issu de `publications`, nul sur
+  // des lignes où `evidence_source` en porte un. Prendre le premier non nul, pas le
+  // premier écrit.
+  const doi = prov?.doi ?? e.doi ?? null;
+  const doiSepare = doi && lien?.toLowerCase() !== `https://doi.org/${doi}`.toLowerCase()
+    ? `https://doi.org/${doi}` : null;
+
   const corps = (
     <>
       <p className="text-[13px] leading-relaxed" style={{ color: INK }}>
@@ -189,6 +209,16 @@ export function LigneEvidence({ e, lang, prov }: { e: EvidenceRow; lang: 'fr' | 
           </span>
         )}
 
+        {doiSepare && (
+          /* `relative z-10` : ce lien doit passer AU-DESSUS de la surface cliquable de
+             la ligne. Un <a> dans un <a> est invalide — d'où la surface en recouvrement
+             plutôt qu'un enrobage. */
+          <a href={doiSepare} target="_blank" rel="noopener noreferrer"
+             className="relative z-10 font-medium hover:underline" style={{ color: GOLD }}>
+            DOI {doi}
+          </a>
+        )}
+
         {!lien && (
           <span style={{ color: '#8C3A2E' }}>
             {fr ? 'sans lien vers la source' : 'no link to source'}
@@ -200,14 +230,18 @@ export function LigneEvidence({ e, lang, prov }: { e: EvidenceRow; lang: 'fr' | 
 
   /* La LIGNE ENTIÈRE est la cible, plus la seule mention « DOI ». Celle-ci supposait
      que le lecteur sache qu'un mot de trois lettres est un lien. */
-  return lien ? (
-    <a href={lien} target="_blank" rel="noopener noreferrer"
-       className="block border-b py-3 last:border-b-0 hover:bg-[rgba(196,154,44,0.06)]"
-       style={{ borderColor: LINE }}>
+  return (
+    <article className="group relative border-b py-3 last:border-b-0 hover:bg-[rgba(196,154,44,0.06)]"
+             style={{ borderColor: LINE }}>
+      {lien && (
+        /* Surface en recouvrement : toute la ligne mène au document, et les liens
+           internes — le DOI — restent atteignables grâce à leur `z-10`. Enrober la
+           ligne dans un <a> aurait rendu tout lien interne invalide. */
+        <a href={lien} target="_blank" rel="noopener noreferrer"
+           className="absolute inset-0 z-0" aria-label={e.claim.slice(0, 80)} />
+      )}
       {corps}
-    </a>
-  ) : (
-    <article className="border-b py-3 last:border-b-0" style={{ borderColor: LINE }}>{corps}</article>
+    </article>
   );
 }
 

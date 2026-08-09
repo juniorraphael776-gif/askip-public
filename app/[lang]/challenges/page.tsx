@@ -56,6 +56,12 @@ export default async function Challenges({ params }: { params: Promise<{ lang: s
         <h1 className="text-2xl font-bold" style={{ color: BORDEAUX }}>
           {fr ? 'Défis connus' : 'Known challenges'}
         </h1>
+        {/* La date en tête : une page entièrement chiffrée doit dire de quand datent
+            ses chiffres. Sans elle, chaque nombre serait daté implicitement du jour de
+            lecture — et plusieurs viennent de relevés qui ne bougent pas tous les jours. */}
+        <p className="mt-1 text-[12px] font-semibold" style={{ color: GOLD }}>
+          {fr ? 'État au 9 août 2026.' : 'As of 9 August 2026.'}
+        </p>
         <p className="mt-1 text-sm" style={{ color: MUTED }}>
           {fr
             ? 'Ce que ce corpus ne sait pas encore faire, mesuré et daté. Ce sont des chantiers, pas des renoncements.'

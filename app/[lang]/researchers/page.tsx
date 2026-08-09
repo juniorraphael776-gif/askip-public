@@ -19,7 +19,7 @@ import { DefisConnus } from '@/app/challenges-link';
 import { isLang, t, type Lang } from '@/lib/i18n';
 import { faults, getEvidenceOrigin, getResearchers } from '@/lib/queries';
 import { CountBar, Diagnostic, Empty, MethodBanner, Note, Section, Stat, num } from '@/app/ui';
-import { BORDEAUX, INK, LINE, MUTED } from '@/lib/theme';
+import { BORDEAUX, GOLD, INK, LINE, MUTED } from '@/lib/theme';
 
 export const revalidate = 900;
 
@@ -39,6 +39,29 @@ export default async function Researchers({ params }: { params: Promise<{ lang: 
   const maxC = Math.max(1, ...top.map(([, n]) => n));
   const totalOrigin = ranked.reduce((s, [, n]) => s + n, 0);
   const withPubs = people.filter((p) => p.publications > 0).length;
+
+  /**
+   * Deux groupes, dans cet ordre : les fiches confirmées d'abord, celles en attente
+   * ensuite. L'ordre inverse ferait ouvrir la liste sur ce qui est incertain.
+   */
+  const groupes = [
+    {
+      cle: 'verifies',
+      titre: L === 'fr' ? 'Identifiant vérifié' : 'Verified identifier',
+      sous: L === 'fr'
+        ? 'ORCID confirmé par une vérification humaine.'
+        : 'ORCID confirmed by human verification.',
+      gens: people.filter((p) => p.verified_status === 'human_verified'),
+    },
+    {
+      cle: 'attente',
+      titre: L === 'fr' ? 'Identifiant à confirmer' : 'Identifier to be confirmed',
+      sous: L === 'fr'
+        ? 'ORCID documenté mais non confirmé. Si vous figurez ici, un message à contact@e-shepha.com suffit à le confirmer ou à le corriger.'
+        : 'ORCID documented but not confirmed. If you appear here, one message to contact@e-shepha.com is enough to confirm or correct it.',
+      gens: people.filter((p) => p.verified_status !== 'human_verified'),
+    },
+  ];
 
   return (
     <>
@@ -71,8 +94,32 @@ export default async function Researchers({ params }: { params: Promise<{ lang: 
         </Note>
       </Section>
 
+      {/* ── DEUX GROUPES, ET CE N'EST PAS CELUI QU'ON ATTENDAIT ────────────────
+          La demande était « ceux avec ORCID d'un côté, ceux sans de l'autre ».
+          Mesuré : les 65 chercheurs exposés ont TOUS un ORCID au format valide. Le
+          groupe « sans » serait vide, et une table vide sous un titre affirmerait
+          quelque chose de faux.
+
+          La distinction qui existe réellement est `verified_status` : 38 vérifiés par
+          un humain, 27 dont l'identifiant est documenté mais pas encore confirmé.
+          C'est celle-là qui porte l'intention — un chercheur qui voit son nom dans le
+          second groupe peut confirmer son identifiant. */}
       <Section title={L === 'fr' ? 'Chercheurs' : 'Researchers'}
                hint={L === 'fr' ? 'classés par nombre de publications rattachées' : 'ranked by number of linked publications'}>
+        {/* ⚠️ 65 EXPOSÉS, 80 COMPTÉS. `overview_counts` en annonce 80, `public_api.researcher`
+            en rend 65, et le graphe en connaît 77. Trois comptes pour une même notion :
+            les taire laisserait croire que cette liste est complète. */}
+        <p className="mb-4 text-[12px]" style={{ color: MUTED }}>
+          {L === 'fr'
+            ? <>Cette liste en montre <strong style={{ color: INK }}>{num(people.length, L)}</strong>. Le corpus en compte <strong style={{ color: INK }}>80</strong> : les autres sont rattachés à des publications sans que leur fiche soit publiée. L’écart est connu et n’est pas résorbé.</>
+            : <>This list shows <strong style={{ color: INK }}>{num(people.length, L)}</strong>. The corpus counts <strong style={{ color: INK }}>80</strong>: the others are linked to publications without their record being published. The gap is known and not yet closed.</>}
+        </p>
+        {groupes.map(({ cle, titre, sous, gens }) => gens.length === 0 ? null : (
+        <div key={cle} className="mb-6">
+        <p className="mb-1 text-[13px] font-semibold" style={{ color: BORDEAUX }}>
+          {titre} <span className="tabular-nums" style={{ color: GOLD }}>{num(gens.length, L)}</span>
+        </p>
+        <p className="mb-2 text-[12px]" style={{ color: MUTED }}>{sous}</p>
         <div className="overflow-x-auto rounded-lg" style={{ border: `1px solid ${LINE}`, background: '#fff' }}>
           <table className="w-full min-w-[560px] border-collapse text-[13px]">
             <thead>
@@ -85,7 +132,7 @@ export default async function Researchers({ params }: { params: Promise<{ lang: 
               </tr>
             </thead>
             <tbody>
-              {people.map((p) => (
+              {gens.map((p) => (
                 <tr key={p.id}>
                   <td className="px-3 py-1.5" style={{ borderBottom: `1px solid ${LINE}`, color: INK }}>{p.full_name}</td>
                   <td className="px-3 py-1.5" style={{ borderBottom: `1px solid ${LINE}`, color: MUTED }}>
@@ -102,6 +149,8 @@ export default async function Researchers({ params }: { params: Promise<{ lang: 
             </tbody>
           </table>
         </div>
+        </div>
+        ))}
         <Note>
           {L === 'fr'
             ? "Le rattachement vient du champ pays du chercheur, pas d'une institution normalisée : les affiliations sont du texte libre, elles ne sont ni dédupliquées ni comptables. C'est pourquoi cet écran ne prétend pas parler d'institutions."

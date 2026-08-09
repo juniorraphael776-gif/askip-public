@@ -192,11 +192,47 @@ export interface SearchRow {
   total_count: number;
 }
 
+/**
+ * ⚠️ RÉESSAI SUR LE CHEMIN FROID, ET SEULEMENT SUR LUI.
+ *
+ * `search_evidence` met 1,4 à 3,7 s au premier accès — les vues sont matérialisées et
+ * le rendu ISR touche des pages froides. Sans reprise, la page est GELÉE sur son
+ * diagnostic jusqu'à la prochaine régénération, soit un quart d'heure : constaté sur
+ * `/fr/evidence`, l'écran vers lequel un relecteur est envoyé, qui affichait « cet
+ * écran n'a pas pu être affiché » sur un corpus de 63 227 evidences.
+ *
+ * L'explorateur du graphe avait déjà cette reprise, côté client ; celui-ci est rendu
+ * par le serveur et n'en avait aucune. Le même défaut, sur deux chemins différents.
+ *
+ * TROIS tentatives, pas deux. Avec une seule reprise, deux expirations consécutives
+ * suffisaient encore à geler l'écran — constaté au navigateur alors que `curl` passait.
+ * Chaque tentative réchauffe un peu plus les pages ; la troisième est celle qui tient.
+ *
+ * On ne réessaie QUE sur `57014` : un réessai sur une vue absente ou un droit refusé
+ * doublerait l'attente sans rien changer, et masquerait la cause derrière une lenteur.
+ */
+async function reessaiFroid<T>(
+  nom: string,
+  run: () => PromiseLike<{ data: T | null; error: { message: string; code?: string } | null }>,
+  essais = 3,
+) {
+  let dernier = await run();
+  for (let i = 1; i < essais; i++) {
+    const froid = dernier.error
+      && (dernier.error.code === '57014' || /statement timeout|canceling statement/i.test(dernier.error.message));
+    // On ne réessaie QUE sur un dépassement de délai. Sur une vue absente ou un droit
+    // refusé, réessayer doublerait l'attente sans rien changer.
+    if (!froid) break;
+    dernier = await run();
+  }
+  return safe<T>(nom, () => Promise.resolve(dernier));
+}
+
 export const searchEvidence = (p: {
   q?: string; topic?: string; country?: string; language?: string; section?: string;
   limit?: number; offset?: number;
 }) =>
-  safe<SearchRow[]>('search_evidence', () => db.rpc('search_evidence', {
+  reessaiFroid<SearchRow[]>('search_evidence', () => db.rpc('search_evidence', {
     p_q: p.q || null, p_topic: p.topic || null, p_country: p.country || null,
     p_language: p.language || null, p_section: p.section || null,
     p_limit: p.limit ?? 25, p_offset: p.offset ?? 0,
@@ -503,6 +539,14 @@ export interface Provenance {
   evidence_id: string;
   source_url: string | null;
   source_path: string | null;
+  /**
+   * ⚠️ CE DOI N'EST PAS CELUI DE `search_evidence`.
+   * Celui-ci vient de `evidence_source` ; l'autre vient de la table `publications` par
+   * jointure, et il est NUL sur des lignes où celui-ci est renseigné — constaté sur
+   * `10.1038/oby.2009.73`, dont la ligne n'affichait aucun identifiant alors qu'elle
+   * en a un. Deux champs du même nom, deux origines, deux contenus.
+   */
+  doi: string | null;
   /** Observations PRODUITES par le document. Ne jamais afficher — voir le champ gold. */
   n_evidences: number | null;
   /** Observations VALIDÉES du document : les seules que le portail montre. */
@@ -512,8 +556,8 @@ export interface Provenance {
 export const getProvenance = (ids: string[]) =>
   ids.length === 0
     ? Promise.resolve(new Map<string, Provenance>())
-    : safe<Provenance[]>('evidence_source', () =>
+    : reessaiFroid<Provenance[]>('evidence_source', () =>
         db.from('evidence_source')
-          .select('evidence_id, source_url, source_path, n_evidences, n_evidences_gold')
+          .select('evidence_id, source_url, source_path, doi, n_evidences, n_evidences_gold')
           .in('evidence_id', ids),
       ).then((r) => new Map((r ?? []).map((x) => [x.evidence_id, x])));
