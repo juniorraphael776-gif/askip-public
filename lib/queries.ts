@@ -534,6 +534,33 @@ export const getGraphEntryEdges = () =>
   safe<GraphEntryEdge[]>('graph_entry_edges', () => db.from('graph_entry_edges').select('*'));
 
 /** Les 100 nœuds, libellés résolus. Rend `null` si la lecture n'aboutit pas. */
+/**
+ * ⚠️ GARDE D'AFFICHAGE — UNE NOTE DE TRAVAIL NE SORT PAS SUR UNE SURFACE PUBLIQUE.
+ *
+ * `graph_node` a porté `Chinyere Ezeaka (soumis « Ngozi »)`. « Ngozi » n'est pas une
+ * graphie concurrente : c'est le prénom d'une TIERCE PERSONNE, une bibliothécaire dont
+ * l'ORCID avait été attribué par erreur à cette chercheuse. La mention était une note
+ * d'enquête interne, et elle s'affichait sur le graphe public à côté du nom de
+ * quelqu'un d'autre.
+ *
+ * `researchers` a été corrigée en base ; `graph_node` est une seconde source et
+ * portait encore l'ancien libellé. C'est le défaut du champ `doi` de deux origines,
+ * transposé à une donnée personnelle : deux vues, un même nom de champ, et l'une des
+ * deux non corrigée.
+ *
+ * ── CE QUE CETTE GARDE NE FAIT PAS ──────────────────────────────────────────
+ * Elle ne retire PAS toutes les parenthèses. `Akin (Emmanuel Akinola) Abayomi` est un
+ * nom, pas une note. Seul le marqueur d'enquête — une parenthèse contenant « soumis »
+ * — est retiré ; tout le reste passe.
+ *
+ * C'est un PALLIATIF D'AFFICHAGE, pas une correction : la valeur reste en base et
+ * ressortira sur toute autre surface qui la lit. Le rafraîchissement de `graph_node`
+ * est chez le poste noyau.
+ */
+export function nomPublic(nom: string): string {
+  return nom.replace(/\s*\([^)]*soumis[^)]*\)/gi, '').replace(/\s{2,}/g, ' ').trim();
+}
+
 export async function getGraphEntry(): Promise<GraphEntryNode[] | null> {
   const socle = await safe<{ node_type: string; node_id: string; role: 'degre' | 'pont' }[]>(
     'graph_entry', () => db.from('graph_entry').select('*'));
@@ -549,7 +576,7 @@ export async function getGraphEntry(): Promise<GraphEntryNode[] | null> {
     ...n,
     // Un libellé manquant retombe sur l'id : illisible pour un UUID, mais JAMAIS vide.
     // Un nœud sans nom ne se clique pas — on ne désigne pas ce qu'on ne peut pas nommer.
-    node_label: carte.get(`${n.node_type}:${n.node_id}`) ?? n.node_id,
+    node_label: nomPublic(carte.get(`${n.node_type}:${n.node_id}`) ?? n.node_id),
   }));
 }
 
