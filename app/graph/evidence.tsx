@@ -57,9 +57,15 @@ export interface Provenance {
   evidence_id: string;
   source_url: string | null;
   source_path: string | null;
-  /** Observations extraites du MÊME document. Voir `LigneEvidence` : c'est ce qui
-   *  sépare « vérifiable » de « ouvrable ». */
+  /**
+   * Observations extraites du même document — TOUTES, validées ou non. NE PAS
+   * L'AFFICHER : voir `n_evidences_gold`.
+   */
   n_evidences: number | null;
+  /**
+   * Observations du même document QUI ONT FRANCHI LE CONTRÔLE — les seules que le
+   * portail montre. C'est ce compte-là qui va à l'écran.
+   */
   n_evidences_gold: number | null;
 }
 
@@ -136,7 +142,21 @@ export function LigneEvidence({ e, lang, prov }: { e: EvidenceRow; lang: 'fr' | 
    */
   const lien = prov?.source_url
     ?? (e.doi ? `https://doi.org/${e.doi}` : e.pmid ? `https://pubmed.ncbi.nlm.nih.gov/${e.pmid}/` : null);
-  const n = prov?.n_evidences ?? null;
+  /**
+   * ⚠️ `n_evidences_gold`, JAMAIS `n_evidences`.
+   *
+   * Les deux diffèrent sur 1 403 documents de 6 233, pour un écart total de 9 705
+   * observations. Le rapport DHS FR371 en a produit 6 795 et n'en montre que 5 766 :
+   * annoncer 6 795 sous un lien qui mène à un écran qui en affiche 5 766 promettrait
+   * une vérification impossible — le lecteur chercherait mille observations qui n'y
+   * sont pas.
+   *
+   * C'est le même partage que partout ailleurs sur ce portail : ce qui est EXTRAIT et
+   * ce qui est VALIDÉ ne se confondent pas, et l'écran ne montre jamais que le second.
+   * Publié un instant avec le mauvais compte — la faute exacte que ce commentaire
+   * décrivait déjà, commise en la décrivant.
+   */
+  const n = prov?.n_evidences_gold ?? null;
 
   const corps = (
     <>
@@ -165,11 +185,12 @@ export function LigneEvidence({ e, lang, prov }: { e: EvidenceRow; lang: 'fr' | 
         )}
         {src && <span style={{ opacity: 0.8 }}>{src}</span>}
 
-        {/* LA GRANULARITÉ, ET C'EST CE QUI SÉPARE « VÉRIFIABLE » DE « OUVRABLE ».
-            Une ligne DHS mène à un document qui porte 5 766 observations ; une ligne
-            PubMed à un document qui en porte 6. Sans ce nombre, le lien promet une
-            vérification qu'il ne permet pas — le lecteur croit ouvrir la source d'UNE
-            mesure et tombe sur un rapport de trois cents pages. */}
+        {/* LA GRANULARITÉ, LISIBLE AVANT LE CLIC.
+            « Ce document porte 5 766 observations » et « ce document en porte 3 » ne
+            promettent pas la même vérification. Le nombre est donc dans la ligne, à
+            côté du lien — pas au survol, qui n'existe pas au doigt, et pas sur la page
+            d'arrivée, qui est trop tard. C'est ce qui sépare « vérifiable »
+            d'« ouvrable ». */}
         {n !== null && n > 1 && (
           <span style={{ color: GOLD }}>
             {fr ? `document de ${n.toLocaleString('fr-FR')} observations` : `document of ${n.toLocaleString('en')} observations`}
