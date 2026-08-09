@@ -25,7 +25,7 @@ export function EvidenceExplorer({
   sections: string[];
 }) {
   const fr = lang === 'fr';
-  const { etat, lignes, total, chercher } = useEvidences(lang);
+  const { etat, lignes, total, prov, chercher } = useEvidences(lang);
   const [q, setQ] = useState('');
   const [section, setSection] = useState<string | null>(null);
   // Tant que personne n'a rien demandé, on montre ce que le serveur a déjà rendu.
@@ -128,6 +128,7 @@ export function EvidenceExplorer({
         etat={vierge ? 'ok' : etat}
         lignes={affichees}
         total={compte}
+        prov={prov}
         lang={lang}
         vide={fr
           ? 'Aucune evidence validée ne correspond. Le terme est cherché dans le texte du claim, pas dans les libellés normalisés.'

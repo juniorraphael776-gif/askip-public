@@ -43,7 +43,7 @@ const TYPE_EN: Record<string, string> = {
 
 export function EvidencePanel({ noeud, lang }: { noeud: GraphNode | null; lang: 'fr' | 'en' }) {
   const fr = lang === 'fr';
-  const { etat, lignes, total, chercher } = useEvidences(lang);
+  const { etat, lignes, total, prov, chercher } = useEvidences(lang);
   const p = noeud ? pont(noeud) : null;
 
   useEffect(() => {
@@ -101,6 +101,7 @@ export function EvidencePanel({ noeud, lang }: { noeud: GraphNode | null; lang: 
             etat={noeud ? etat : 'vide'}
             lignes={lignes}
             total={total}
+            prov={prov}
             lang={lang}
             vide={noeud
               ? (fr ? 'Aucune evidence validée pour ce nœud.' : 'No validated evidence for this node.')

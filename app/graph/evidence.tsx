@@ -45,6 +45,24 @@ export interface EvidenceRow {
   total_count: number;
 }
 
+/**
+ * La provenance d'une evidence — `public_api.evidence_source`, 72 932 lignes.
+ *
+ * ⚠️ `search_evidence` NE REND PAS ces colonnes. Elles sont jointes côté client sur
+ * `evidence_id`, en un appel pour toute la page : mesuré à 195 ms pour douze lignes,
+ * contre 1 417 ms pour la recherche elle-même. Le coût est marginal ; l'absence de
+ * chemin vers la source ne l'était pas.
+ */
+export interface Provenance {
+  evidence_id: string;
+  source_url: string | null;
+  source_path: string | null;
+  /** Observations extraites du MÊME document. Voir `LigneEvidence` : c'est ce qui
+   *  sépare « vérifiable » de « ouvrable ». */
+  n_evidences: number | null;
+  n_evidences_gold: number | null;
+}
+
 export interface Recherche {
   q?: string | null;
   topic?: string | null;
@@ -69,7 +87,8 @@ export interface Recherche {
  */
 export async function chercherEvidences(
   p: Recherche,
-): Promise<{ ok: true; lignes: EvidenceRow[]; total: number } | { ok: false; froid: boolean; detail: string }> {
+): Promise<{ ok: true; lignes: EvidenceRow[]; total: number; prov: Map<string, Provenance> }
+         | { ok: false; froid: boolean; detail: string }> {
   for (let essai = 0; essai < 2; essai++) {
     const { data, error } = await db.rpc('search_evidence', {
       p_q: p.q || null, p_topic: p.topic || null, p_country: p.country || null,
@@ -78,7 +97,16 @@ export async function chercherEvidences(
     });
     if (!error) {
       const lignes = (data ?? []) as EvidenceRow[];
-      return { ok: true, lignes, total: lignes[0]?.total_count ?? 0 };
+      // La provenance est jointe ICI et non par l'appelant : deux composants montrent
+      // ces lignes, et une jointure faite deux fois divergerait tôt ou tard.
+      const prov = new Map<string, Provenance>();
+      if (lignes.length) {
+        const { data: src } = await db.from('evidence_source')
+          .select('evidence_id, source_url, source_path, n_evidences, n_evidences_gold')
+          .in('evidence_id', lignes.map((l) => l.evidence_id));
+        for (const r of (src ?? []) as Provenance[]) prov.set(r.evidence_id, r);
+      }
+      return { ok: true, lignes, total: lignes[0]?.total_count ?? 0, prov };
     }
     const froid = error.code === '57014' || /statement timeout|canceling statement/i.test(error.message);
     if (!froid || essai === 1) return { ok: false, froid, detail: `${error.code ?? '?'} ${error.message}` };
@@ -94,13 +122,24 @@ const SRC: Record<string, string> = {
 export const sourceLisible = (s: string | null) =>
   !s ? null : (SRC[s.toLowerCase()] ?? s.replace(/^hal\s+/i, 'HAL · '));
 
-export function LigneEvidence({ e, lang }: { e: EvidenceRow; lang: 'fr' | 'en' }) {
+export function LigneEvidence({ e, lang, prov }: { e: EvidenceRow; lang: 'fr' | 'en'; prov?: Provenance }) {
   const fr = lang === 'fr';
   const src = sourceLisible(e.source);
-  const lien = e.doi ? `https://doi.org/${e.doi}` : e.pmid ? `https://pubmed.ncbi.nlm.nih.gov/${e.pmid}/` : null;
+  /**
+   * `source_url` D'ABORD, le DOI ensuite.
+   *
+   * 45,3 % du corpus n'a ni DOI ni PMID — 28 670 lignes, surtout HAL Unilim et DHS
+   * Program — et n'avait donc AUCUN chemin vers sa source. `evidence_source` couvre
+   * 99,5 % des lignes ; les 288 restantes n'ont rien, et l'écran le dit plutôt que de
+   * laisser une ligne muette au milieu de lignes cliquables : sans mention, l'absence
+   * de lien se lit comme un oubli d'affichage, pas comme une absence de donnée.
+   */
+  const lien = prov?.source_url
+    ?? (e.doi ? `https://doi.org/${e.doi}` : e.pmid ? `https://pubmed.ncbi.nlm.nih.gov/${e.pmid}/` : null);
+  const n = prov?.n_evidences ?? null;
 
-  return (
-    <article className="border-b py-3 last:border-b-0" style={{ borderColor: LINE }}>
+  const corps = (
+    <>
       <p className="text-[13px] leading-relaxed" style={{ color: INK }}>
         {e.numeric_value !== null && (
           <strong className="mr-2 whitespace-nowrap" style={{ color: GOLD }}>
@@ -125,13 +164,37 @@ export function LigneEvidence({ e, lang }: { e: EvidenceRow; lang: 'fr' | 'en' }
           </span>
         )}
         {src && <span style={{ opacity: 0.8 }}>{src}</span>}
-        {lien && (
-          <a href={lien} target="_blank" rel="noopener noreferrer" className="hover:underline" style={{ color: GOLD }}>
-            {e.doi ? 'DOI' : 'PMID'}
-          </a>
+
+        {/* LA GRANULARITÉ, ET C'EST CE QUI SÉPARE « VÉRIFIABLE » DE « OUVRABLE ».
+            Une ligne DHS mène à un document qui porte 5 766 observations ; une ligne
+            PubMed à un document qui en porte 6. Sans ce nombre, le lien promet une
+            vérification qu'il ne permet pas — le lecteur croit ouvrir la source d'UNE
+            mesure et tombe sur un rapport de trois cents pages. */}
+        {n !== null && n > 1 && (
+          <span style={{ color: GOLD }}>
+            {fr ? `document de ${n.toLocaleString('fr-FR')} observations` : `document of ${n.toLocaleString('en')} observations`}
+          </span>
+        )}
+
+        {!lien && (
+          <span style={{ color: '#8C3A2E' }}>
+            {fr ? 'sans lien vers la source' : 'no link to source'}
+          </span>
         )}
       </p>
-    </article>
+    </>
+  );
+
+  /* La LIGNE ENTIÈRE est la cible, plus la seule mention « DOI ». Celle-ci supposait
+     que le lecteur sache qu'un mot de trois lettres est un lien. */
+  return lien ? (
+    <a href={lien} target="_blank" rel="noopener noreferrer"
+       className="block border-b py-3 last:border-b-0 hover:bg-[rgba(196,154,44,0.06)]"
+       style={{ borderColor: LINE }}>
+      {corps}
+    </a>
+  ) : (
+    <article className="border-b py-3 last:border-b-0" style={{ borderColor: LINE }}>{corps}</article>
   );
 }
 
@@ -143,13 +206,14 @@ export function LigneEvidence({ e, lang }: { e: EvidenceRow; lang: 'fr' | 'en' }
  * `/fr/evidence` afficher « aucune donnée » pendant que le corpus en portait 63 227.
  */
 export function ListeEvidences({
-  etat, lignes, total, lang, vide,
+  etat, lignes, total, lang, vide, prov,
 }: {
   etat: 'vide' | 'chargement' | 'ok' | 'panne';
   lignes: EvidenceRow[];
   total: number;
   lang: 'fr' | 'en';
   vide: string;
+  prov?: Map<string, Provenance>;
 }) {
   const fr = lang === 'fr';
   if (etat === 'chargement') {
@@ -178,7 +242,7 @@ export function ListeEvidences({
           ? `${lignes.length} affichées sur ${total.toLocaleString('fr-FR')}`
           : `${lignes.length} shown of ${total.toLocaleString('en')}`}
       </p>
-      {lignes.map((e) => <LigneEvidence key={e.evidence_id} e={e} lang={lang} />)}
+      {lignes.map((e) => <LigneEvidence key={e.evidence_id} e={e} lang={lang} prov={prov?.get(e.evidence_id)} />)}
     </>
   );
 }
@@ -188,6 +252,7 @@ export function useEvidences(lang: 'fr' | 'en') {
   const [etat, setEtat] = useState<'vide' | 'chargement' | 'ok' | 'panne'>('vide');
   const [lignes, setLignes] = useState<EvidenceRow[]>([]);
   const [total, setTotal] = useState(0);
+  const [prov, setProv] = useState<Map<string, Provenance>>(new Map());
   // Le jeton évite qu'une réponse lente écrase une réponse plus récente : sur un
   // corpus où un appel varie de 150 ms à 3,7 s, l'ordre d'arrivée n'est pas l'ordre
   // de départ, et le dernier clic doit gagner.
@@ -195,14 +260,14 @@ export function useEvidences(lang: 'fr' | 'en') {
 
   const chercher = useCallback(async (p: Recherche | null) => {
     const mien = ++jeton.current;
-    if (!p) { setEtat('vide'); setLignes([]); setTotal(0); return; }
+    if (!p) { setEtat('vide'); setLignes([]); setTotal(0); setProv(new Map()); return; }
     setEtat('chargement');
     const r = await chercherEvidences(p);
     if (mien !== jeton.current) return;
-    if (!r.ok) { setEtat('panne'); setLignes([]); setTotal(0); return; }
-    setEtat('ok'); setLignes(r.lignes); setTotal(r.total);
+    if (!r.ok) { setEtat('panne'); setLignes([]); setTotal(0); setProv(new Map()); return; }
+    setEtat('ok'); setLignes(r.lignes); setTotal(r.total); setProv(r.prov);
   }, []);
 
   useEffect(() => () => { jeton.current++; }, []);
-  return { etat, lignes, total, chercher, lang };
+  return { etat, lignes, total, prov, chercher, lang };
 }
