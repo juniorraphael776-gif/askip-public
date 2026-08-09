@@ -23,6 +23,7 @@ import { notFound } from 'next/navigation';
 import { isLang, type Lang } from '@/lib/i18n';
 import { CountsDropNotice } from '@/app/notice';
 import { ValidationTierNotice } from '@/app/notice-validation';
+import { ProchaineEtape } from '@/app/challenges-next';
 import { BORDEAUX, GOLD, LINE, MUTED } from '@/lib/theme';
 
 export const revalidate = 900;
@@ -103,15 +104,7 @@ export default async function Challenges({ params }: { params: Promise<{ lang: s
           ? 'Ce qui est en cours, et qui fait de ce qui précède un travail plutôt qu’un constat.'
           : 'What is under way, and what turns the above into work rather than a verdict.'}
       >
-        {/* ⚠️ PLACE RÉSERVÉE, PAS TEXTE D'ATTENTE.
-            Le contenu vient du poste noyau. Écrire une esquisse ici serait pire qu'un
-            vide annoncé : un lecteur ne distingue pas une intention provisoire d'un
-            engagement, et cette page est celle qu'un ministère ouvre en premier. */}
-        <p className="rounded-lg p-4 text-[13px]" style={{ border: `1px dashed ${LINE}`, color: MUTED }}>
-          {fr
-            ? 'Cette section est en cours de rédaction. Elle décrira les chantiers ouverts et leur échéance — pas des intentions, des travaux datés.'
-            : 'This section is being written. It will describe the open work and its timeline — not intentions, dated work.'}
-        </p>
+        <ProchaineEtape lang={L} />
       </Partie>
     </>
   );
