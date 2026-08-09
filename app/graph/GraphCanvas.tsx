@@ -529,8 +529,23 @@ export function GraphCanvas({
   // supprimée entre-temps : il n'a rien écrit, `tsc` est resté vert puisque la
   // référence existait, et le minuteur appelait `null?.()` — un no-op silencieux.
   // Une édition qui ne s'applique pas rend le même résultat qu'une édition appliquée.
-  cadrerRef.current = () =>
-    cadrer(voisinage && voisinage.size > 1 ? voisinage : (noyau.size > 1 ? noyau : null));
+  /**
+   * ⚠️ AFFECTÉE DANS UN EFFET, PAS PENDANT LE RENDU.
+   *
+   * Écrite dans le corps du composant, cette ligne fonctionnait en développement et
+   * PAS dans le build de production — le graphe s'y affichait au sixième de sa taille.
+   * Écrire une référence pendant le rendu n'est pas sûr en mode concurrent : React peut
+   * abandonner et rejouer un rendu, et rien ne garantit l'ordre entre cette écriture et
+   * les rappels qui la lisent.
+   *
+   * Le défaut ne se voyait qu'après `next build` : `npm run dev` le masquait. C'est la
+   * raison pour laquelle il a survécu à trois déploiements et à autant de vérifications
+   * — toutes faites sur le serveur de développement.
+   */
+  useEffect(() => {
+    cadrerRef.current = () =>
+      cadrer(voisinage && voisinage.size > 1 ? voisinage : (noyau.size > 1 ? noyau : null));
+  });
 
   /**
    * ⚠️ L'OBJET PASSÉ À `graphData` DOIT GARDER SON IDENTITÉ ENTRE DEUX RENDUS.
