@@ -470,6 +470,7 @@ export function GraphCanvas({
   // Déclarée avant l'effet qui la lit ; sa valeur est posée plus bas, une fois
   // `voisinage` et `noyau` connus.
   const cadrerRef = useRef<(() => void) | null>(null);
+  const ticks = useRef(0);
 
   /**
    * ⚠️ NE PAS DÉPENDRE DE `onEngineStop` : IL NE SE DÉCLENCHE PAS DE FAÇON FIABLE.
@@ -497,14 +498,23 @@ export function GraphCanvas({
      * transitoire, zoomait dessus, et le garde interdisait de recommencer. Le graphe
      * s'affichait au sixième de sa taille.
      *
-     * C'est la même faute que le cadrage au chronomètre que j'avais retiré il y a deux
-     * jours, revenue par une autre porte : mesurer à un instant choisi plutôt qu'à un
-     * état atteint. Faute de pouvoir observer l'état — `onEngineStop` ne se déclenche
-     * pas de façon fiable — on mesure DEUX FOIS, et le second relevé corrige le premier.
+     * Le minuteur a été essayé à 2 400 ms, puis à 2 400 et 6 000 : en local la
+     * simulation avait fini, EN PRODUCTION non — la page est plus lourde, les 140 ticks
+     * durent plus longtemps, et les deux relevés tombaient en pleine contraction. Le
+     * graphe s'affichait au sixième de sa taille.
+     *
+     * ⚠️ ON NE MESURE DONC PLUS À UN INSTANT, ON COMPTE LES TICKS. `onEngineTick` est
+     * fiable là où `onEngineStop` ne l'est pas : au 140e tick — la valeur de
+     * `cooldownTicks` — la disposition est FINIE, quelle que soit la machine. C'est un
+     * état atteint et non un instant choisi, et c'est la seule formulation qui ne
+     * dépende pas de la vitesse du client.
+     *
+     * Le minuteur de 8 s reste en filet : si les ticks n'arrivaient pas du tout, mieux
+     * vaut un cadrage tardif qu'aucun.
      */
-    const t1 = setTimeout(() => cadrerRef.current?.(), 2400);
-    const t2 = setTimeout(() => cadrerRef.current?.(), 6000);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
+    ticks.current = 0;
+    const t = setTimeout(() => cadrerRef.current?.(), 8000);  // filet, si les ticks manquent
+    return () => clearTimeout(t);
   }, [nodes.length, links.length]);
 
   const noyau = useMemo(() => {
@@ -562,6 +572,10 @@ export function GraphCanvas({
            à l'œil, pas au calcul. 140 est le point où la lisibilité cesse de progresser
            assez pour payer l'attente. */
         cooldownTicks={140}
+        onEngineTick={() => {
+          // Au 140e tick la disposition est finie : on cadre là, pas à une heure dite.
+          if (++ticks.current === 140) cadrerRef.current?.();
+        }}
         onEngineStop={() => {
           // Accélérateur : quand il tire, il cadre plus tôt que le minuteur. Le garde
           // évite qu'il ne double le passage à 2 400 ms sur le même jeu de données.
