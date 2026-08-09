@@ -221,6 +221,21 @@ export function GraphCanvas({
   // Effet plutôt qu'appel dans le gestionnaire : `choisi` change aussi quand le
   // dépliage se termine (il gagne `deplie` et `truncated`), et le panneau doit voir
   // la version à jour, pas celle du clic.
+  /**
+   * ⚠️ LES FORCES SE POSENT AU PREMIER TICK, PAS DANS UN EFFET DE MONTAGE.
+   *
+   * `ForceGraph2D` est en import dynamique : au premier effet, `fg.current` est ENCORE
+   * NUL et le `if (!g) return;` sortait sans rien régler. Les forces gardaient donc les
+   * valeurs par défaut de d3, qui étalent la disposition et produisent des nœuds très
+   * éloignés — d'où une étendue mesurée de 516 unités au lieu de 190, un zoom écrasé
+   * pour tout contenir, et un amas dense minuscule au centre.
+   *
+   * En DÉVELOPPEMENT le mode strict rejoue chaque effet : le second passage trouvait la
+   * référence et réglait tout. Le défaut n'existait donc qu'en production, et les
+   * quatre corrections de cadrage tentées avant celle-ci portaient sur le symptôme.
+   *
+   * Le premier tick garantit que la simulation existe. Un drapeau évite de refaire.
+   */
   useEffect(() => { onSelect?.(choisi); }, [choisi, onSelect]);
 
 
@@ -271,9 +286,13 @@ export function GraphCanvas({
    * cette seule garantie ne se justifie pas tant que la répulsion suffit ; si le
    * recouvrement réapparaît sur un nœud très dense, c'est le premier recours.
    */
-  useEffect(() => {
+  const forces = useRef(false);
+  const poserForces = () => {
+    if (forces.current) return;
     const g = fg.current;
-    if (!g) return;
+    if (!g?.d3Force) return;
+    forces.current = true;
+
     // ⚠️ La force NE PEUT PAS être réglée pour le graphe déplié seul. Au départ il n'y
     // a AUCUNE arête : rien ne retient les nœuds, et une répulsion calibrée pour
     // soixante-dix voisins reliés les éjecte tous hors du cadre. Vu à l'écran — canvas
@@ -295,7 +314,7 @@ export function GraphCanvas({
     // cadrage qui rendait compte d'une dispersion invisible.
     g.d3Force('center')?.strength(0.28);
     g.d3ReheatSimulation?.();
-  }, []);
+  };
 
   const auClic = useCallback(async (brut: unknown) => {
     const n = brut as GraphNode;
@@ -460,17 +479,19 @@ export function GraphCanvas({
     const marge = 22;
     const l = Math.max(1, x1 - x0), h = Math.max(1, y1 - y0);
     const z = Math.min((largeur - marge * 2) / l, (hauteur - marge * 2) / h);
-    g?.centerAt?.((x0 + x1) / 2, (y0 + y1) / 2, 420);
+    g?.centerAt?.((x0 + x1) / 2, (y0 + y1) / 2, 180);
     // Plafonné : sur deux nœuds très proches, le rapport exploserait et on afficherait
     // deux disques géants au lieu d'un graphe.
     const zf = Math.min(Math.max(z, 0.05), 6);
-    g?.zoom?.(zf, 420);
+    g?.zoom?.(zf, 180);
   }, [largeur, hauteur, nodes]);
 
   // Déclarée avant l'effet qui la lit ; sa valeur est posée plus bas, une fois
   // `voisinage` et `noyau` connus.
   const cadrerRef = useRef<(() => void) | null>(null);
   const ticks = useRef(0);
+  /** Dernière étendue relevée, pour détecter que la disposition a cessé de bouger. */
+  const etendue = useRef(0);
 
   /**
    * ⚠️ NE PAS DÉPENDRE DE `onEngineStop` : IL NE SE DÉCLENCHE PAS DE FAÇON FIABLE.
@@ -512,7 +533,7 @@ export function GraphCanvas({
      * Le minuteur de 8 s reste en filet : si les ticks n'arrivaient pas du tout, mieux
      * vaut un cadrage tardif qu'aucun.
      */
-    ticks.current = 0;
+    ticks.current = 0; etendue.current = 0; cadre.current = -1;
     const t = setTimeout(() => cadrerRef.current?.(), 8000);  // filet, si les ticks manquent
     return () => clearTimeout(t);
   }, [nodes.length, links.length]);
@@ -588,8 +609,26 @@ export function GraphCanvas({
            assez pour payer l'attente. */
         cooldownTicks={140}
         onEngineTick={() => {
-          // Au 140e tick la disposition est finie : on cadre là, pas à une heure dite.
-          if (++ticks.current === 140) cadrerRef.current?.();
+          /**
+           * LA CAMÉRA SUIT LA DISPOSITION — on cesse de deviner quand elle s'arrête.
+           *
+           * Quatre formulations ont échoué, toutes fondées sur un INSTANT : 2 400 ms ;
+           * 2 400 et 6 000 ; le 140e tick ; l'étendue stable à 2 % près. Chacune
+           * supposait savoir d'avance quand la simulation finirait, et chacune tombait
+           * pendant que les nœuds bougeaient encore. En développement elles
+           * fonctionnaient — la disposition y finit plus tôt — ce qui les a toutes fait
+           * valider à tort.
+           *
+           * On recadre donc toutes les 25 images, tant que le moteur tourne. Le dernier
+           * recadrage tombe forcément après le dernier mouvement, quelle que soit la
+           * machine. Ce n'est plus une prédiction, c'est un suivi — et le coût est un
+           * appel de caméra, pas un calcul de disposition.
+           *
+           * ⚠️ AUCUN GARDE ICI. Le garde `cadre.current` existait pour empêcher un
+           * second cadrage ; c'est précisément le second qui manquait.
+           */
+          poserForces();
+          if (++ticks.current % 25 === 0) cadrerRef.current?.();
         }}
         onEngineStop={() => {
           // Accélérateur : quand il tire, il cadre plus tôt que le minuteur. Le garde
