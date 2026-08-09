@@ -661,11 +661,22 @@ export function GraphCanvas({
         }}
         nodePointerAreaPaint={(brut: any, couleur: string, ctx: CanvasRenderingContext2D) => {
           const n = brut as GraphNode & { x: number; y: number };
+          if (!Number.isFinite(n.x) || !Number.isFinite(n.y)) return;
           ctx.fillStyle = couleur;
           ctx.beginPath();
-          // Zone de clic plus large que le disque : les nœuds font 4 à 6 unités et
-          // rater sa cible est le premier échec d'exploration.
-          ctx.arc(n.x, n.y, (RAYON[n.node_type] ?? 5) + 4, 0, 2 * Math.PI);
+          /**
+           * LA ZONE DE CLIC EST DÉCOUPLÉE DU RAYON DESSINÉ, ET C'EST VOULU.
+           *
+           * Les nœuds font 4 à 6 unités. À vingt nœuds cadrés large, ils occupaient une
+           * bonne dizaine de pixels ; à cent, le zoom d'ensemble les ramène à trois ou
+           * quatre, et viser devient un exercice. Un graphe qu'on ne peut pas cliquer
+           * n'est pas explorable — l'échec est aussi complet que si rien ne s'affichait.
+           *
+           * On élargit donc la CIBLE sans grossir le DESSIN : `nodePointerAreaPaint` est
+           * une passe séparée, invisible, qui ne sert qu'à la détection. Grossir le
+           * disque à la place aurait rendu le graphe plus dense pour le régler.
+           */
+          ctx.arc(n.x, n.y, (RAYON[n.node_type] ?? 5) + 11, 0, 2 * Math.PI);
           ctx.fill();
         }}
       />
