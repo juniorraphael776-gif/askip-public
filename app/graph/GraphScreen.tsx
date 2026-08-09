@@ -33,7 +33,7 @@ export function GraphScreen({
    * côte à côte — et c'est au panneau de défiler, puisque c'est lui qui porte la liste.
    */
   return (
-    <div className="mb-6 grid gap-4 lg:h-[460px] lg:grid-cols-[minmax(0,2.6fr)_minmax(0,1fr)]">
+    <div className="mb-6 grid gap-4 lg:h-[620px] lg:grid-cols-[minmax(0,2.6fr)_minmax(0,1fr)]">
       <GraphCanvas nodes={nodes} links={links} lang={lang} limite={limite} onSelect={surSelection} />
       <EvidencePanel noeud={choisi} lang={lang} />
     </div>

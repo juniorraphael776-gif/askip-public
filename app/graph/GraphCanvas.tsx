@@ -185,18 +185,24 @@ export function GraphCanvas({
   const fg = useRef<any>(null);
   const [largeur, setLargeur] = useState(900);
   /**
-   * 360, et c'est un choix de RAPPORT, pas de place.
+   * 620, et le raisonnement a été refait deux fois avant d'arriver là.
    *
    * La disposition en force produit un amas ROND. À 790×460, il occupait 80 % de la
    * hauteur et 46 % de la largeur : le cadrage remplissait tout ce que la hauteur
    * autorisait, et le vide était latéral — un cercle dans une boîte 1,7:1 laisse deux
    * côtés vides. Ajouter des nœuds aurait densifié le cercle sans l'élargir.
    *
-   * Baisser la hauteur fait donc GRANDIR l'amas à largeur égale : le zoom monte et les
-   * libellés se lisent. C'est le seul des trois leviers qui gagne de la lisibilité sans
-   * rien retirer au panneau, qui est ce qui porte la matière.
+   * Baisser la hauteur RÉTRÉCIT l'amas — l'inverse de ce que nous avions cru tous les
+   * deux. `largeur remplie = (hauteur − 2×marge) / largeur_canvas` : la hauteur est au
+   * numérateur. Mesuré : 360 → zoom 1,41 ; 460 → 1,93 ; 460 avec marge 22 → 2,18.
+   *
+   * ⚠️ ET LE POURCENTAGE DE REMPLISSAGE N'EST PAS CE QUI REND UN LIBELLÉ LISIBLE.
+   * Un canvas 560×460 remplirait 74 % comme 790×620, mais avec un amas de 416 px au
+   * lieu de 576 — soit 38 % de place en moins par nœud. C'est la TAILLE ABSOLUE de
+   * l'amas qui décide du texte, pas la proportion de boîte occupée. Deux réglages
+   * peuvent afficher le même « 74 % » et l'un être illisible.
    */
-  const hauteur = 460;
+  const hauteur = 620;
   const [nodes, setNodes] = useState<GraphNode[]>(nodesInit);
   const [links, setLinks] = useState<GraphLink[]>(linksInit);
   const [choisi, setChoisi] = useState<GraphNode | null>(null);
@@ -441,9 +447,10 @@ export function GraphCanvas({
      * L'amas est ROND ; le cadrage est donc contraint par la HAUTEUR, et la marge est
      * la seule variable qui reste une fois la hauteur fixée. Trois relevés, canvas
      * 790 de large :
-     *   hauteur 360, marge 46  →  zoom 1,41  ·  34 % de largeur
-     *   hauteur 460, marge 46  →  zoom 1,93  ·  46 %
-     *   hauteur 460, marge 22  →  zoom 2,18  ·  53 %
+     *   hauteur 360, marge 46  →  zoom 1,41  ·  34 % de largeur  ·  amas 268 px
+     *   hauteur 460, marge 46  →  zoom 1,93  ·  46 %  ·  amas 368 px
+     *   hauteur 460, marge 22  →  zoom 2,18  ·  53 %  ·  amas 416 px
+     *   hauteur 620, marge 22  →  zoom 3,02  ·  73 %  ·  amas 576 px  ← retenu
      *
      * ⚠️ RÉDUIRE LA HAUTEUR RÉTRÉCIT LE GRAPHE, ce qui est l'inverse de l'intuition :
      * un cercle ajusté dans une boîte plus basse devient plus petit, puisque c'est la
