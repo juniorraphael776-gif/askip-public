@@ -489,12 +489,22 @@ export function GraphCanvas({
    * veut bien tirer, et le garde `cadre.current` empêche le doublon.
    */
   useEffect(() => {
-    const t = setTimeout(() => {
-      if (cadre.current === nodes.length) return;
-      cadre.current = nodes.length;
-      cadrerRef.current?.();
-    }, 2400);
-    return () => clearTimeout(t);
+    /**
+     * DEUX PASSAGES, ET LE SECOND N'EST PAS UNE PRÉCAUTION.
+     *
+     * Un minuteur unique à 2 400 ms suppose que la simulation a fini à cet instant.
+     * En local elle avait fini ; EN PRODUCTION non — le cadrage mesurait une étendue
+     * transitoire, zoomait dessus, et le garde interdisait de recommencer. Le graphe
+     * s'affichait au sixième de sa taille.
+     *
+     * C'est la même faute que le cadrage au chronomètre que j'avais retiré il y a deux
+     * jours, revenue par une autre porte : mesurer à un instant choisi plutôt qu'à un
+     * état atteint. Faute de pouvoir observer l'état — `onEngineStop` ne se déclenche
+     * pas de façon fiable — on mesure DEUX FOIS, et le second relevé corrige le premier.
+     */
+    const t1 = setTimeout(() => cadrerRef.current?.(), 2400);
+    const t2 = setTimeout(() => cadrerRef.current?.(), 6000);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [nodes.length, links.length]);
 
   const noyau = useMemo(() => {
@@ -553,6 +563,8 @@ export function GraphCanvas({
            assez pour payer l'attente. */
         cooldownTicks={140}
         onEngineStop={() => {
+          // Accélérateur : quand il tire, il cadre plus tôt que le minuteur. Le garde
+          // évite qu'il ne double le passage à 2 400 ms sur le même jeu de données.
           if (cadre.current === nodes.length) return;
           cadre.current = nodes.length;
           // CADRER SUR LE VOISINAGE, PAS SUR TOUT LE GRAPHE.
