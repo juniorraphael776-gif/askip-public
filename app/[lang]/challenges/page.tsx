@@ -23,6 +23,7 @@ import { notFound } from 'next/navigation';
 import { isLang, type Lang } from '@/lib/i18n';
 import { CountsDropNotice } from '@/app/notice';
 import { ValidationTierNotice } from '@/app/notice-validation';
+import { Contribuer, HuitDefis, NonMesure } from '@/app/challenges-defis';
 import { ProchaineEtape } from '@/app/challenges-next';
 import { BORDEAUX, GOLD, LINE, MUTED } from '@/lib/theme';
 
@@ -66,15 +67,36 @@ export default async function Challenges({ params }: { params: Promise<{ lang: s
         n={1}
         titre={fr ? 'Nos limites actuelles' : 'Our current limitations'}
         sous={fr
-          ? 'Ce que le corpus contient, et sous quelles conditions. Chaque chiffre est lu en base au rendu.'
-          : 'What the corpus contains, and under what conditions. Every figure is read from the database at render time.'}
+          ? 'Ce que notre corpus ne fait pas encore bien, ce que nous en savons exactement, et ce qu’il faudrait pour le corriger.'
+          : 'What our corpus does not yet do well, exactly what we know about it, and what it would take to fix.'}
       >
-        {/* Les deux notes sont reprises MOT POUR MOT. Elles ont été relues et corrigées
-            trois fois chacune — une arithmétique fausse en v1, une garde partielle en
-            v2, un taux faux pour les deux surfaces. Les paraphraser remettrait ce
-            travail à zéro. */}
-        <ValidationTierNotice lang={L} />
-        <CountsDropNotice lang={L} />
+        <HuitDefis lang={L} />
+        <NonMesure lang={L} />
+
+        {/* ── ANNEXE : DEUX CAS, PAS LE CONTENU ──────────────────────────────
+            Ces deux notes expliquent des chiffres PRÉCIS affichés ailleurs — la baisse
+            de la carte au 6 août, le palier de validation. Elles ne décrivent pas les
+            défis du corpus : elles racontent deux corrections datées.
+
+            Elles restent parce qu'un lecteur qui voit un chiffre bouger cherche
+            l'explication de CE chiffre-là, et qu'elles ont été relues et corrigées
+            trois fois — une arithmétique fausse en v1, une garde partielle en v2, un
+            taux faux pour les deux surfaces en v3. Les paraphraser remettrait ce
+            travail à zéro.
+
+            Mais elles passent en annexe : mises en tête, elles faisaient passer deux
+            cas particuliers pour l'état du corpus. */}
+        <details className="mt-8 rounded-lg" style={{ border: `1px solid ${LINE}` }}>
+          <summary className="cursor-pointer px-4 py-3 text-[13px] font-semibold" style={{ color: BORDEAUX }}>
+            {fr
+              ? 'Annexe — deux corrections datées, et pourquoi certains chiffres ont baissé'
+              : 'Appendix — two dated corrections, and why some figures went down'}
+          </summary>
+          <div className="px-4 pb-4">
+            <ValidationTierNotice lang={L} />
+            <CountsDropNotice lang={L} />
+          </div>
+        </details>
       </Partie>
 
       <Partie
@@ -106,6 +128,8 @@ export default async function Challenges({ params }: { params: Promise<{ lang: s
       >
         <ProchaineEtape lang={L} />
       </Partie>
+
+      <Contribuer lang={L} />
     </>
   );
 }
