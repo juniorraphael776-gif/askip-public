@@ -107,9 +107,23 @@ const COULEUR: Record<NodeType, string> = {
   drug:        '#B08542',
 };
 
+/**
+ * LA TAILLE DIT LE TYPE, JAMAIS LE DEGRÉ.
+ *
+ * Un rayon proportionnel au degré ferait de Nigeria (15 219) un astre et de paludisme
+ * (11 600) son satellite — alors que le corpus ne dit rien de tel : il dit que les
+ * lieux sont mieux rattachés que les maladies, ce qui est une propriété de
+ * l'EXTRACTION et non de la santé. Coder ça en surface serait la même faute que la
+ * carte choroplèthe que ce portail refuse.
+ *
+ * Les maladies sont légèrement PLUS grandes que les pays : à l'écran, 30 nœuds
+ * bordeaux — couleur sombre, donc optiquement plus petite — se faisaient noyer par
+ * 25 nœuds or sur fond ivoire. Le rayon compense l'écart de luminosité pour que les
+ * deux pèsent pareil. Le degré, lui, se lit dans la barre d'état au clic.
+ */
 const RAYON: Record<NodeType, number> = {
-  location: 6, disease: 6, population: 5, drug: 5,
-  researcher: 5, publication: 4, evidence: 4,
+  disease: 7.5, location: 6, population: 5.5, drug: 5.5,
+  researcher: 6, publication: 4.5, evidence: 4,
 };
 
 const NOM_TYPE_FR: Record<NodeType, string> = {
@@ -195,6 +209,7 @@ export function GraphCanvas({
   // dépliage se termine (il gagne `deplie` et `truncated`), et le panneau doit voir
   // la version à jour, pas celle du clic.
   useEffect(() => { onSelect?.(choisi); }, [choisi, onSelect]);
+
 
 
   /**
@@ -596,7 +611,7 @@ export function GraphCanvas({
           const pont = n.porte || n.role === 'pont';
           if (!pont) { ctx.fillStyle = `${c}26`; ctx.fill(); }
           ctx.strokeStyle = c;
-          ctx.lineWidth = (pont ? 1.4 : 2.1) / echelle;
+          ctx.lineWidth = (pont ? 1.4 : n.node_type === 'disease' ? 2.6 : 2.1) / echelle;
           ctx.stroke();
 
           // ARC OUVERT : le contour s'interrompt sur un quart de tour. Le nœud cesse

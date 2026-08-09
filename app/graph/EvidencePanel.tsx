@@ -53,7 +53,14 @@ export function EvidencePanel({ noeud, lang }: { noeud: GraphNode | null; lang: 
 
   return (
     <section
-      className="flex h-full flex-col rounded-lg p-4"
+      /* ⚠️ HAUTEUR BORNÉE À TOUTES LES LARGEURS, pas seulement en `lg`.
+         La rangée de grille fixe la hauteur sur grand écran ; en dessous, les blocs
+         s'empilent et le panneau reprenait sa hauteur naturelle — douze evidences,
+         parfois des claims entiers pour un nœud `evidence` — puis débordait par-dessus
+         les notes et l'explorateur. Deux couches se superposaient et plus rien ne se
+         lisait. `max-h` borne la boîte ; c'est à la LISTE de défiler, jamais au bloc
+         de s'étendre. */
+      className="flex h-full max-h-[460px] flex-col overflow-hidden rounded-lg p-4"
       style={{ border: `1px solid ${LINE}`, background: '#FFFDF8' }}
     >
       <header className="mb-2 border-b pb-2" style={{ borderColor: LINE }}>
