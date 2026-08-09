@@ -185,9 +185,16 @@ export function GraphCanvas({
   const fg = useRef<any>(null);
   const [largeur, setLargeur] = useState(900);
   /**
-   * 340 px suffisaient à vingt nœuds. À cent, ils produisent une pelote : la surface
-   * disponible par nœud décide de la lisibilité bien avant les forces. 460 reste le
-   * tiers haut d'un écran de portable et laisse la matière sous la ligne de flottaison.
+   * 360, et c'est un choix de RAPPORT, pas de place.
+   *
+   * La disposition en force produit un amas ROND. À 790×460, il occupait 80 % de la
+   * hauteur et 46 % de la largeur : le cadrage remplissait tout ce que la hauteur
+   * autorisait, et le vide était latéral — un cercle dans une boîte 1,7:1 laisse deux
+   * côtés vides. Ajouter des nœuds aurait densifié le cercle sans l'élargir.
+   *
+   * Baisser la hauteur fait donc GRANDIR l'amas à largeur égale : le zoom monte et les
+   * libellés se lisent. C'est le seul des trois leviers qui gagne de la lisibilité sans
+   * rien retirer au panneau, qui est ce qui porte la matière.
    */
   const hauteur = 460;
   const [nodes, setNodes] = useState<GraphNode[]>(nodesInit);
@@ -428,7 +435,22 @@ export function GraphCanvas({
     const y0 = Math.min(...ys), y1 = Math.max(...ys);
     // La marge tient compte du libellé, posé SOUS le nœud : sans elle, les noms du bas
     // sortent du cadre et le graphe paraît coupé.
-    const marge = 46;
+    /**
+     * 22 px, et c'est mesuré, pas choisi.
+     *
+     * L'amas est ROND ; le cadrage est donc contraint par la HAUTEUR, et la marge est
+     * la seule variable qui reste une fois la hauteur fixée. Trois relevés, canvas
+     * 790 de large :
+     *   hauteur 360, marge 46  →  zoom 1,41  ·  34 % de largeur
+     *   hauteur 460, marge 46  →  zoom 1,93  ·  46 %
+     *   hauteur 460, marge 22  →  zoom 2,18  ·  53 %
+     *
+     * ⚠️ RÉDUIRE LA HAUTEUR RÉTRÉCIT LE GRAPHE, ce qui est l'inverse de l'intuition :
+     * un cercle ajusté dans une boîte plus basse devient plus petit, puisque c'est la
+     * hauteur qui le borne. Le vide latéral n'est pas un défaut de cadrage, c'est la
+     * conséquence d'un amas rond dans une boîte 1,7:1.
+     */
+    const marge = 22;
     const l = Math.max(1, x1 - x0), h = Math.max(1, y1 - y0);
     const z = Math.min((largeur - marge * 2) / l, (hauteur - marge * 2) / h);
     g?.centerAt?.((x0 + x1) / 2, (y0 + y1) / 2, 420);
