@@ -490,3 +490,30 @@ export async function getGraphEntry(): Promise<GraphEntryNode[] | null> {
     node_label: carte.get(`${n.node_type}:${n.node_id}`) ?? n.node_id,
   }));
 }
+
+/**
+ * Provenance d'un lot d'evidences — `public_api.evidence_source`, 72 932 lignes.
+ *
+ * Le pendant SERVEUR de la jointure que `chercherEvidences` fait côté client. Les deux
+ * lisent la même vue et rendent la même forme ; ce qui diffère est seulement d'où part
+ * l'appel. `LigneEvidence` reçoit le résultat des deux, donc le rendu ne peut pas
+ * diverger — c'est la raison d'être du fichier commun.
+ */
+export interface Provenance {
+  evidence_id: string;
+  source_url: string | null;
+  source_path: string | null;
+  /** Observations PRODUITES par le document. Ne jamais afficher — voir le champ gold. */
+  n_evidences: number | null;
+  /** Observations VALIDÉES du document : les seules que le portail montre. */
+  n_evidences_gold: number | null;
+}
+
+export const getProvenance = (ids: string[]) =>
+  ids.length === 0
+    ? Promise.resolve(new Map<string, Provenance>())
+    : safe<Provenance[]>('evidence_source', () =>
+        db.from('evidence_source')
+          .select('evidence_id, source_url, source_path, n_evidences, n_evidences_gold')
+          .in('evidence_id', ids),
+      ).then((r) => new Map((r ?? []).map((x) => [x.evidence_id, x])));

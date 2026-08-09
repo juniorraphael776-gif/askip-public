@@ -20,6 +20,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { db } from '@/lib/supabase-public';
+import type { Provenance } from '@/lib/queries';
 import { GOLD, INK, LINE, MUTED } from '@/lib/theme';
 
 export interface EvidenceRow {
@@ -46,28 +47,19 @@ export interface EvidenceRow {
 }
 
 /**
- * La provenance d'une evidence — `public_api.evidence_source`, 72 932 lignes.
+ * La provenance vient de `lib/queries.ts` — UNE SEULE DÉFINITION.
  *
- * ⚠️ `search_evidence` NE REND PAS ces colonnes. Elles sont jointes côté client sur
- * `evidence_id`, en un appel pour toute la page : mesuré à 195 ms pour douze lignes,
- * contre 1 417 ms pour la recherche elle-même. Le coût est marginal ; l'absence de
- * chemin vers la source ne l'était pas.
+ * Elle y était déjà, pour la lecture serveur de `/fr/evidence`. En écrire une seconde
+ * ici aurait donné deux types pour la même vue : ils auraient coïncidé le premier jour
+ * et divergé au premier ajout de colonne, sans que rien ne le signale. C'est le motif
+ * des trois `SRC_MAP` et des trois `displaySource`, dont ce fichier est né — et je
+ * venais de le reproduire en dupliquant l'interface.
+ *
+ * ⚠️ `search_evidence` NE REND PAS ces colonnes. Elles sont jointes sur `evidence_id` :
+ * côté client ici, côté serveur dans `getProvenance`. Mesuré à 195 ms pour douze
+ * lignes, contre 1 417 ms pour la recherche elle-même.
  */
-export interface Provenance {
-  evidence_id: string;
-  source_url: string | null;
-  source_path: string | null;
-  /**
-   * Observations extraites du même document — TOUTES, validées ou non. NE PAS
-   * L'AFFICHER : voir `n_evidences_gold`.
-   */
-  n_evidences: number | null;
-  /**
-   * Observations du même document QUI ONT FRANCHI LE CONTRÔLE — les seules que le
-   * portail montre. C'est ce compte-là qui va à l'écran.
-   */
-  n_evidences_gold: number | null;
-}
+export type { Provenance } from '@/lib/queries';
 
 export interface Recherche {
   q?: string | null;

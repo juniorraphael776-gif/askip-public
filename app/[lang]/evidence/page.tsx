@@ -12,9 +12,10 @@
  */
 import { notFound } from 'next/navigation';
 import { isLang, t, type Lang } from '@/lib/i18n';
-import { faults, getSearchFacets, searchEvidence } from '@/lib/queries';
-import { Empty, MethodBanner, Note, Section, num, Diagnostic } from '@/app/ui';
-import { BORDEAUX, GOLD, INK, LINE, MUTED, SECTION_TINT } from '@/lib/theme';
+import { faults, getProvenance, getSearchFacets, searchEvidence } from '@/lib/queries';
+import { Empty, MethodBanner, Note, num, Diagnostic } from '@/app/ui';
+import { LigneEvidence, type EvidenceRow } from '@/app/graph/evidence';
+import { BORDEAUX, GOLD, INK, LINE, MUTED } from '@/lib/theme';
 
 export const revalidate = 300;
 
@@ -41,6 +42,18 @@ export default async function Explorer({
   ]);
 
   if (!rows) return <Diagnostic lang={L} faults={faults()} />;
+
+  /**
+   * ⚠️ CET ÉCRAN AVAIT SON PROPRE RENDU DE LIGNE, et il portait donc encore les fautes
+   * corrigées ailleurs : pas de `source_url` — donc aucun chemin vers la source pour
+   * les 45,3 % d'evidences sans DOI ni PMID — pas de granularité, et le lien réduit à
+   * la mention « DOI ». C'est l'écran vers lequel un relecteur est envoyé.
+   *
+   * Il passe sur `LigneEvidence`, le rendu commun. Trois surfaces le partagent
+   * maintenant : cet explorateur, le panneau du graphe et l'explorateur du bas. Une
+   * quatrième copie aurait divergé comme les trois `displaySource` avant elle.
+   */
+  const prov = await getProvenance(rows.map((r) => r.evidence_id));
   const total = rows.length ? Number(rows[0]!.total_count) : 0;
   const pages = Math.max(1, Math.ceil(total / size));
   const qs = (over: Record<string, string | number | undefined>) => {
@@ -96,44 +109,12 @@ export default async function Explorer({
       </p>
 
       {rows.length === 0 ? <Empty>{t(L, 'no_data')}</Empty> : (
-        <ul className="flex flex-col gap-3">
+        <div className="rounded-lg px-4" style={{ background: '#fff', border: `1px solid ${LINE}` }}>
           {rows.map((r) => (
-            <li key={r.evidence_id} className="rounded-lg p-4" style={{ background: '#fff', border: `1px solid ${LINE}` }}>
-              <p className="text-[14px] leading-relaxed" style={{ color: INK }}>{r.claim}</p>
-
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
-                {r.numeric_value !== null ? (
-                  <span className="font-semibold" style={{ color: GOLD }}>
-                    {r.numeric_value}{r.numeric_unit ? ` ${r.numeric_unit}` : ''}
-                  </span>
-                ) : null}
-                <span className="rounded px-1.5 py-0.5 uppercase" style={{ background: '#F0EDE5', color: MUTED }}>{r.language}</span>
-                {r.topics.slice(0, 4).map((tp, i) => (
-                  <span key={tp} className="rounded px-1.5 py-0.5"
-                        style={{ background: SECTION_TINT[r.sections[i] ?? 'maladies'] ?? '#F0EDE5', color: MUTED }}>{tp}</span>
-                ))}
-                {r.countries.slice(0, 4).map((c) => (
-                  <span key={c} className="rounded px-1.5 py-0.5" style={{ background: '#F0EDE5', color: MUTED }}>{c}</span>
-                ))}
-                {r.temporal_context ? <span style={{ color: MUTED }}>{r.temporal_context}</span> : null}
-              </div>
-
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]" style={{ color: MUTED }}>
-                {r.publication_title ? <span className="max-w-full truncate">{r.publication_title}</span> : null}
-                {r.journal ? <span>· {r.journal}</span> : null}
-                {r.publication_year ? <span>· {r.publication_year}</span> : null}
-                {r.source ? <span>· {r.source}</span> : null}
-                {r.doi ? (
-                  <a href={`https://doi.org/${r.doi}`} target="_blank" rel="noreferrer"
-                     className="font-medium hover:underline" style={{ color: GOLD }}>· DOI {r.doi}</a>
-                ) : r.pmid ? (
-                  <a href={`https://pubmed.ncbi.nlm.nih.gov/${r.pmid}/`} target="_blank" rel="noreferrer"
-                     className="font-medium hover:underline" style={{ color: GOLD }}>· PMID {r.pmid}</a>
-                ) : null}
-              </div>
-            </li>
+            <LigneEvidence key={r.evidence_id} e={r as unknown as EvidenceRow} lang={L}
+                           prov={prov.get(r.evidence_id)} />
           ))}
-        </ul>
+        </div>
       )}
 
       {pages > 1 ? (
@@ -146,8 +127,8 @@ export default async function Explorer({
 
       <Note>
         {L === 'fr'
-          ? "La vérification se fait en ouvrant le DOI : l'extrait exact du texte source (source_span) n'est pas publié, par contrainte de droit d'auteur."
-          : 'Verification is done by opening the DOI: the exact source excerpt (source_span) is not published, due to copyright constraints.'}
+          ? "Chaque ligne mène à son document source. Le nombre indiqué est celui des observations VALIDÉES qu'il porte, jamais celui des observations extraites : les deux diffèrent sur la plupart des documents. L'extrait exact du texte source n'est pas publié, par contrainte de droit d'auteur."
+          : 'Every row leads to its source document. The figure shown counts the VALIDATED observations it carries, never the extracted ones: the two differ on most documents. The exact source excerpt is not published, due to copyright constraints.'}
       </Note>
     </>
   );
