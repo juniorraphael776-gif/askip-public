@@ -21,6 +21,24 @@ import { faults, getEvidenceOrigin, getResearchers } from '@/lib/queries';
 import { CountBar, Diagnostic, Empty, MethodBanner, Note, Section, Stat, num } from '@/app/ui';
 import { BORDEAUX, GOLD, INK, LINE, MUTED } from '@/lib/theme';
 
+/**
+ * Les libellés de `recoupement` viennent de la BASE, en français, explication comprise :
+ * « indécidable — fiche ORCID sans travaux déclarés ». On les rend tels quels en
+ * français, et on les traduit ici pour l'anglais — sans les raccourcir.
+ *
+ * ⚠️ « Indécidable » ne dit pas un doute sur la PERSONNE. C'est un silence de la
+ * SOURCE : la fiche ORCID elle-même ne déclare aucun travail, donc le second test n'a
+ * rien à comparer. Raccourcir en « non vérifié » ferait porter au chercheur une
+ * incertitude qui appartient à sa fiche.
+ */
+const RECOUP_EN: Record<string, string> = {
+  'confirmé — nom ET travaux': 'confirmed — name AND works',
+  'indécidable — fiche ORCID sans travaux déclarés': 'undecidable — ORCID record declares no works',
+  'divergent — un test contredit l’autre': 'divergent — one test contradicts the other',
+  "divergent — un test contredit l'autre": 'divergent — one test contradicts the other',
+  'sans identifiant': 'no identifier',
+};
+
 export const revalidate = 900;
 
 export default async function Researchers({ params }: { params: Promise<{ lang: string }> }) {
@@ -41,27 +59,28 @@ export default async function Researchers({ params }: { params: Promise<{ lang: 
   const withPubs = people.filter((p) => p.publications > 0).length;
 
   /**
-   * Deux groupes, dans cet ordre : les fiches confirmées d'abord, celles en attente
-   * ensuite. L'ordre inverse ferait ouvrir la liste sur ce qui est incertain.
+   * TROIS GROUPES, sur `identification` — la relecture INTERNE.
+   *
+   * Le troisième n'existait pas : la vue filtrait `WHERE orcid IS NOT NULL` et
+   * masquait seize personnes. J'avais conclu qu'aucune n'était sans identifiant, en
+   * mesurant une surface qui les excluait par construction. Parmi elles, Akintunde
+   * Sowunmi porte 242 publications — le troisième rang du corpus.
+   *
+   * L'ordre va du plus établi au moins établi, et le dernier groupe porte l'appel :
+   * c'est celui dont les membres peuvent nous donner ce qui manque.
    */
-  const groupes = [
-    {
-      cle: 'verifies',
-      titre: L === 'fr' ? 'Identifiant vérifié' : 'Verified identifier',
-      sous: L === 'fr'
-        ? 'ORCID confirmé par une vérification humaine.'
-        : 'ORCID confirmed by human verification.',
-      gens: people.filter((p) => p.verified_status === 'human_verified'),
-    },
-    {
-      cle: 'attente',
-      titre: L === 'fr' ? 'Identifiant à confirmer' : 'Identifier to be confirmed',
-      sous: L === 'fr'
-        ? 'ORCID documenté mais non confirmé. Si vous figurez ici, un message à contact@e-shepha.com suffit à le confirmer ou à le corriger.'
-        : 'ORCID documented but not confirmed. If you appear here, one message to contact@e-shepha.com is enough to confirm or correct it.',
-      gens: people.filter((p) => p.verified_status !== 'human_verified'),
-    },
+  const GROUPES = [
+    { cle: 'identifiant vérifié',     fr: 'Identifiant vérifié',      en: 'Verified identifier' },
+    { cle: 'identifiant à confirmer', fr: 'Identifiant à confirmer',  en: 'Identifier to be confirmed' },
+    { cle: 'sans identifiant',        fr: 'Sans identifiant',         en: 'No identifier' },
   ];
+  const groupes = GROUPES.map((g) => ({
+    ...g,
+    gens: people.filter((p) => p.identification === g.cle),
+  }));
+  // Filet : une valeur d'`identification` inconnue ne doit pas faire disparaître
+  // quelqu'un de l'écran sans le dire.
+  const orphelins = people.filter((p) => !GROUPES.some((g) => g.cle === p.identification));
 
   return (
     <>
@@ -77,7 +96,10 @@ export default async function Researchers({ params }: { params: Promise<{ lang: 
       <DefisConnus lang={L} />
 
       <section className="mb-10 grid grid-cols-2 gap-3 md:grid-cols-3">
-        <Stat label={t(L, 'kpi_researchers')} value={num(people.length, L)} hint="ORCID" />
+        {/* Le sous-titre disait « ORCID ». Il était vrai quand la vue filtrait dessus ;
+            depuis la 060 elle expose aussi les seize qui n'en ont pas. */}
+        <Stat label={t(L, 'kpi_researchers')} value={num(people.length, L)}
+              hint={L === 'fr' ? `${num(people.filter((p) => p.orcid).length, L)} avec ORCID` : `${num(people.filter((p) => p.orcid).length, L)} with ORCID`} />
         <Stat label={L === 'fr' ? 'Avec publications rattachées' : 'With linked publications'} value={num(withPubs, L)} />
         <Stat label={L === 'fr' ? 'Pays de rattachement' : 'Countries of affiliation'} value={num(new Set(people.map((p) => p.country).filter(Boolean)).size, L)} />
       </section>
@@ -109,48 +131,112 @@ export default async function Researchers({ params }: { params: Promise<{ lang: 
         {/* ⚠️ 65 EXPOSÉS, 80 COMPTÉS. `overview_counts` en annonce 80, `public_api.researcher`
             en rend 65, et le graphe en connaît 77. Trois comptes pour une même notion :
             les taire laisserait croire que cette liste est complète. */}
-        <p className="mb-4 text-[12px]" style={{ color: MUTED }}>
-          {L === 'fr'
-            ? <>Cette liste en montre <strong style={{ color: INK }}>{num(people.length, L)}</strong>. Le corpus en compte <strong style={{ color: INK }}>80</strong> : les autres sont rattachés à des publications sans que leur fiche soit publiée. L’écart est connu et n’est pas résorbé.</>
-            : <>This list shows <strong style={{ color: INK }}>{num(people.length, L)}</strong>. The corpus counts <strong style={{ color: INK }}>80</strong>: the others are linked to publications without their record being published. The gap is known and not yet closed.</>}
-        </p>
-        {groupes.map(({ cle, titre, sous, gens }) => gens.length === 0 ? null : (
-        <div key={cle} className="mb-6">
-        <p className="mb-1 text-[13px] font-semibold" style={{ color: BORDEAUX }}>
-          {titre} <span className="tabular-nums" style={{ color: GOLD }}>{num(gens.length, L)}</span>
-        </p>
-        <p className="mb-2 text-[12px]" style={{ color: MUTED }}>{sous}</p>
-        <div className="overflow-x-auto rounded-lg" style={{ border: `1px solid ${LINE}`, background: '#fff' }}>
-          <table className="w-full min-w-[560px] border-collapse text-[13px]">
-            <thead>
-              <tr style={{ color: MUTED }}>
-                <th className="px-3 py-2 text-left" style={{ borderBottom: `1px solid ${LINE}` }}>{L === 'fr' ? 'Nom' : 'Name'}</th>
-                <th className="px-3 py-2 text-left" style={{ borderBottom: `1px solid ${LINE}` }}>{L === 'fr' ? 'Rattachement' : 'Affiliation'}</th>
-                <th className="px-3 py-2 text-left" style={{ borderBottom: `1px solid ${LINE}` }}>{L === 'fr' ? 'Domaine' : 'Field'}</th>
-                <th className="px-3 py-2 text-right" style={{ borderBottom: `1px solid ${LINE}` }}>{L === 'fr' ? 'Publications' : 'Publications'}</th>
-                <th className="px-3 py-2 text-left" style={{ borderBottom: `1px solid ${LINE}` }}>ORCID</th>
-              </tr>
-            </thead>
-            <tbody>
-              {gens.map((p) => (
-                <tr key={p.id}>
-                  <td className="px-3 py-1.5" style={{ borderBottom: `1px solid ${LINE}`, color: INK }}>{p.full_name}</td>
-                  <td className="px-3 py-1.5" style={{ borderBottom: `1px solid ${LINE}`, color: MUTED }}>
-                    {[p.city, p.country].filter(Boolean).join(', ') || '—'}
-                  </td>
-                  <td className="px-3 py-1.5" style={{ borderBottom: `1px solid ${LINE}`, color: MUTED }}>{p.domain ?? '—'}</td>
-                  <td className="px-3 py-1.5 text-right tabular-nums" style={{ borderBottom: `1px solid ${LINE}` }}>{num(p.publications, L)}</td>
-                  <td className="px-3 py-1.5" style={{ borderBottom: `1px solid ${LINE}` }}>
-                    <a href={`https://orcid.org/${p.orcid}`} target="_blank" rel="noreferrer"
-                       className="hover:underline" style={{ color: MUTED }}>{p.orcid}</a>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {/* ── DEUX COLONNES, ET ELLES NE SE RECOUVRENT PAS ─────────────────────
+            `identification` dit qui a été relu par un humain CHEZ NOUS ; `recoupement`
+            dit ce qu'une source EXTERNE confirme. Vingt personnes sont « à confirmer »
+            chez nous mais recoupées dehors ; trois sont « vérifiées » chez nous et
+            indécidables dehors. Les fondre en un seul statut affirmerait que l'une vaut
+            l'autre.
+
+            Et « indécidable » ne porte AUCUN doute sur la personne : c'est la fiche
+            ORCID elle-même qui ne déclare aucun travail, donc le second test n'a rien à
+            comparer. Un silence de la source, pas une réserve sur le chercheur. Le dire
+            ici, parce qu'un lecteur qui rencontre le mot dans un tableau lui prêtera le
+            sens ordinaire. */}
+        <div className="mb-5 rounded-lg p-3 text-[12px] leading-relaxed"
+             style={{ border: `1px solid ${LINE}`, background: '#FFFDF8', color: MUTED }}>
+          <p>
+            {L === 'fr'
+              ? <><strong style={{ color: INK }}>Deux statuts, deux sources.</strong> Les groupes ci-dessous disent qui a été <strong>relu par un humain de notre côté</strong>. La colonne « recoupement externe » dit, elle, ce qu’<strong>une source tierce confirme</strong>, à la date indiquée. Les deux ne coïncident pas : vingt personnes sont « à confirmer » chez nous mais recoupées dehors, trois sont « vérifiées » chez nous et indécidables dehors.</>
+              : <><strong style={{ color: INK }}>Two statuses, two sources.</strong> The groups below say who has been <strong>reviewed by a human on our side</strong>. The “external cross-check” column says what <strong>a third-party source confirms</strong>, at the date shown. The two do not coincide: twenty people are “to be confirmed” on our side but cross-checked outside, three are “verified” on our side and undecidable outside.</>}
+          </p>
+          <p className="mt-2">
+            {L === 'fr'
+              ? <><strong style={{ color: INK }}>« Indécidable » ne met pas la personne en doute.</strong> Cela signifie que sa fiche ORCID ne déclare aucun travail : le recoupement n’a rien à comparer. C’est un silence de la source, pas une réserve sur le chercheur.</>
+              : <><strong style={{ color: INK }}>“Undecidable” casts no doubt on the person.</strong> It means their ORCID record declares no works: the cross-check has nothing to compare. It is a silence in the source, not a reservation about the researcher.</>}
+          </p>
         </div>
+        {groupes.map((g) => g.gens.length === 0 ? null : (
+        <div key={g.cle} className="mb-8">
+          <p className="mb-1 text-[13px] font-semibold" style={{ color: BORDEAUX }}>
+            {L === 'fr' ? g.fr : g.en}{' '}
+            <span className="tabular-nums" style={{ color: GOLD }}>{num(g.gens.length, L)}</span>
+          </p>
+
+          {g.cle === 'sans identifiant' ? (
+            /* L'APPEL EST ICI, PAS EN NOTE DE BAS DE PAGE. Ces seize personnes sont les
+               seules que la page peut réellement atteindre : elles ont un nom, des
+               publications, et il leur manque exactement une chose qu'elles seules
+               peuvent donner. */
+            <p className="mb-3 rounded-lg p-3 text-[12px] leading-relaxed"
+               style={{ border: `1px solid ${GOLD}`, background: '#FBF3E2', color: INK }}>
+              {L === 'fr'
+                ? <>Ces personnes sont rattachées à des publications du corpus mais n’ont pas d’ORCID en base. <strong>Si vous figurez ici, un message à <a href="mailto:contact@e-shepha.com" className="underline" style={{ color: GOLD }}>contact@e-shepha.com</a> suffit</strong> — votre identifiant relie vos travaux dans le graphe et rend vos publications retrouvables.</>
+                : <>These people are linked to publications in the corpus but have no ORCID on record. <strong>If you appear here, one message to <a href="mailto:contact@e-shepha.com" className="underline" style={{ color: GOLD }}>contact@e-shepha.com</a> is enough</strong> — your identifier links your work in the graph and makes your publications findable.</>}
+            </p>
+          ) : (
+            <p className="mb-2 text-[12px]" style={{ color: MUTED }}>
+              {g.cle === 'identifiant vérifié'
+                ? (L === 'fr' ? 'ORCID relu et confirmé par un humain de notre côté.' : 'ORCID read and confirmed by a human on our side.')
+                : (L === 'fr' ? 'ORCID documenté, pas encore relu de notre côté. La colonne « recoupement » dit ce qu’une source externe en pense.' : 'ORCID on record, not yet reviewed on our side. The “cross-check” column says what an external source makes of it.')}
+            </p>
+          )}
+
+          <div className="overflow-x-auto rounded-lg" style={{ border: `1px solid ${LINE}`, background: '#fff' }}>
+            <table className="w-full min-w-[680px] border-collapse text-[13px]">
+              <thead>
+                <tr style={{ color: MUTED }}>
+                  <th className="px-3 py-2 text-left" style={{ borderBottom: `1px solid ${LINE}` }}>{L === 'fr' ? 'Nom' : 'Name'}</th>
+                  <th className="px-3 py-2 text-left" style={{ borderBottom: `1px solid ${LINE}` }}>{L === 'fr' ? 'Rattachement' : 'Affiliation'}</th>
+                  <th className="px-3 py-2 text-right" style={{ borderBottom: `1px solid ${LINE}` }}>{L === 'fr' ? 'Publications' : 'Publications'}</th>
+                  <th className="px-3 py-2 text-left" style={{ borderBottom: `1px solid ${LINE}` }}>ORCID</th>
+                  <th className="px-3 py-2 text-left" style={{ borderBottom: `1px solid ${LINE}` }}>{L === 'fr' ? 'Recoupement externe' : 'External cross-check'}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {g.gens.map((p) => (
+                  <tr key={p.id}>
+                    <td className="px-3 py-1.5" style={{ borderBottom: `1px solid ${LINE}`, color: INK }}>{p.full_name}</td>
+                    <td className="px-3 py-1.5" style={{ borderBottom: `1px solid ${LINE}`, color: MUTED }}>
+                      {[p.city, p.country].filter(Boolean).join(', ') || '—'}
+                    </td>
+                    <td className="px-3 py-1.5 text-right tabular-nums" style={{ borderBottom: `1px solid ${LINE}` }}>{num(p.publications, L)}</td>
+                    <td className="px-3 py-1.5" style={{ borderBottom: `1px solid ${LINE}` }}>
+                      {/* ⚠️ `orcid` PEUT ÊTRE NUL depuis la 060. Composer l'adresse sans
+                          ce test produirait `orcid.org/null` sur seize lignes — un lien
+                          mort, plus mauvais qu'une absence, parce qu'il promet. */}
+                      {p.orcid
+                        ? <a href={`https://orcid.org/${p.orcid}`} target="_blank" rel="noreferrer"
+                             className="hover:underline" style={{ color: MUTED }}>{p.orcid}</a>
+                        : <span style={{ color: MUTED, opacity: 0.6 }}>—</span>}
+                    </td>
+                    <td className="px-3 py-1.5 text-[12px]" style={{ borderBottom: `1px solid ${LINE}`, color: MUTED }}>
+                      {p.recoupement === 'sans identifiant'
+                        ? '—'
+                        : <>{L === 'fr' ? p.recoupement : (RECOUP_EN[p.recoupement ?? ''] ?? p.recoupement)}
+                            {p.recoupement_le && (
+                              <span className="ml-1" style={{ opacity: 0.7 }}>
+                                · {new Date(p.recoupement_le).toLocaleDateString(L === 'fr' ? 'fr-FR' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              </span>
+                            )}
+                          </>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
         ))}
+
+        {orphelins.length > 0 && (
+          <p className="mb-4 text-[12px]" style={{ color: '#8C3A2E' }}>
+            {L === 'fr'
+              ? `${orphelins.length} chercheur(s) portent une valeur d’identification inattendue et n’apparaissent dans aucun groupe ci-dessus.`
+              : `${orphelins.length} researcher(s) carry an unexpected identification value and appear in no group above.`}
+          </p>
+        )}
+
         <Note>
           {L === 'fr'
             ? "Le rattachement vient du champ pays du chercheur, pas d'une institution normalisée : les affiliations sont du texte libre, elles ne sont ni dédupliquées ni comptables. C'est pourquoi cet écran ne prétend pas parler d'institutions."

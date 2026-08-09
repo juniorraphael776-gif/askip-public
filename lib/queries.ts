@@ -242,9 +242,35 @@ export const getSearchFacets = () =>
   safe<{ section: string; topic: string; evidences: number; countries: number }[]>('search_facets', () =>
     db.from('search_facets').select('*').order('evidences', { ascending: false }));
 
+/**
+ * Contrat de la vue `public_api.researcher` après les migrations 060 et 061.
+ *
+ * ⚠️ `orcid` PEUT ÊTRE NUL — c'est nouveau, et c'est le piège de ce contrat. La vue
+ * filtrait auparavant `WHERE r.orcid IS NOT NULL` : elle exposait 65 chercheurs sur 80,
+ * et les 15 manquants l'étaient parce qu'ils n'avaient pas d'identifiant. Le filtre a
+ * sauté ; toute construction `https://orcid.org/${orcid}` sans test produit désormais
+ * une adresse en `/null`, sur seize lignes.
+ *
+ * DEUX COLONNES DE STATUT, ET ELLES NE SE RECOUVRENT PAS :
+ *   `identification` — qui a été relu par un HUMAIN chez nous.
+ *   `recoupement`    — ce qu'une source EXTERNE confirme, à la date `recoupement_le`.
+ *
+ * Vingt personnes sont « à confirmer » chez nous mais recoupées dehors ; trois sont
+ * « vérifiées » chez nous et indécidables dehors. Les fondre en un seul statut
+ * affirmerait que l'une vaut l'autre.
+ */
 export interface Researcher {
   id: string; full_name: string; country: string | null; city: string | null;
-  domain: string | null; orcid: string; verified_status: string | null; publications: number;
+  domain: string | null;
+  /** NUL sur 16 des 80. Toujours tester avant de composer une adresse ORCID. */
+  orcid: string | null;
+  verified_status: string | null; publications: number;
+  /** Relecture INTERNE : « identifiant vérifié » · « à confirmer » · « sans identifiant ». */
+  identification: string | null;
+  /** Recoupement EXTERNE : « confirmé — nom ET travaux » · « indécidable — … » · « divergent — … ». */
+  recoupement: string | null;
+  /** Date du recoupement : la valeur vient d'un tiers, elle vieillit. */
+  recoupement_le: string | null;
 }
 
 export const getResearchers = () =>
