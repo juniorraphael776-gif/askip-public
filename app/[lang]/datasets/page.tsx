@@ -106,12 +106,14 @@ export default async function Datasets({ params }: { params: Promise<{ lang: str
         <Champ
           cle="DOI"
           valeur={
-            <a href="https://doi.org/10.5281/zenodo.21794560" target="_blank" rel="noopener noreferrer"
+            <a href="https://doi.org/10.5281/zenodo.21794559" target="_blank" rel="noopener noreferrer"
                className="hover:underline" style={{ color: GOLD }}>
-              10.5281/zenodo.21794560
+              10.5281/zenodo.21794559
             </a>
           }
-          note={fr ? 'dépôt Zenodo, résolvable et permanent' : 'Zenodo deposit, resolvable and permanent'}
+          note={fr
+            ? 'DOI de CONCEPT : il désigne le dépôt et suit ses versions. Le DOI de version — 10.5281/zenodo.21794560 pour la v1.1 — désigne un instantané et cesse d’être le bon dès la publication suivante.'
+            : 'CONCEPT DOI: it designates the deposit and follows its versions. The version DOI — 10.5281/zenodo.21794560 for v1.1 — designates a snapshot and stops being the right one at the next release.'}
         />
         {/* ⚠️ UN ZÉRO AFFICHÉ EST UNE AFFIRMATION, UNE ABSENCE ANNONCÉE N'EN EST PAS
             UNE. Quand `referential_coverage` expire — troisième chemin froid observé,
@@ -139,6 +141,16 @@ export default async function Datasets({ params }: { params: Promise<{ lang: str
           cle={fr ? 'Evidences validées' : 'Validated evidence'}
           valeur={num(o.evidences_validated, L)}
           note={fr ? `extraites de ${num(o.evidences_total, L)} — le contrôle en a écarté ${num(o.evidences_total - o.evidences_validated, L)}` : `extracted from ${num(o.evidences_total, L)} — the check rejected ${num(o.evidences_total - o.evidences_validated, L)}`}
+        />
+        <Champ
+          cle="Hugging Face"
+          valeur={
+            <a href="https://huggingface.co/datasets/askip776/african-health-evidence"
+               target="_blank" rel="noopener noreferrer" className="hover:underline" style={{ color: GOLD }}>
+              askip776/african-health-evidence
+            </a>
+          }
+          note={fr ? 'même corpus, format tabulaire' : 'same corpus, tabular format'}
         />
         <Champ cle={fr ? 'Observations' : 'Observations'} valeur={num(o.observations, L)} />
         <Champ cle={fr ? 'Publications sources' : 'Source publications'} valeur={num(o.publications, L)} note={`${num(o.publications_with_doi, L)} DOI`} />
@@ -222,11 +234,11 @@ export default async function Datasets({ params }: { params: Promise<{ lang: str
   ? `ASKIP (African Sovereign Knowledge Infrastructure Program).
 E-Shepha Hub. Référentiel ${ref?.referential_version ?? '[version non lue]'}, agrégats du ${dateMaj}.
 ${num(o.evidences_validated, L)} evidences validées sur ${num(o.evidences_total, L)} extraites.
-DOI 10.5281/zenodo.21794560. Licence CC BY 4.0. https://askip.e-shepha.com`
+DOI 10.5281/zenodo.21794559. Licence CC BY 4.0. https://askip.e-shepha.com`
   : `ASKIP (African Sovereign Knowledge Infrastructure Program).
 E-Shepha Hub. Referential ${ref?.referential_version ?? '[version not read]'}, aggregates of ${dateMaj}.
 ${num(o.evidences_validated, L)} validated evidence items of ${num(o.evidences_total, L)} extracted.
-DOI 10.5281/zenodo.21794560. Licence CC BY 4.0. https://askip.e-shepha.com`}
+DOI 10.5281/zenodo.21794559. Licence CC BY 4.0. https://askip.e-shepha.com`}
         </pre>
         <p className="mt-2 text-[12px]" style={{ color: MUTED }}>
           {fr
@@ -237,8 +249,8 @@ DOI 10.5281/zenodo.21794560. Licence CC BY 4.0. https://askip.e-shepha.com`}
 
       <p className="border-t pt-4 text-[12px]" style={{ borderColor: LINE, color: MUTED }}>
         {fr
-          ? <>Le dépôt <a href="https://doi.org/10.5281/zenodo.21794560" target="_blank" rel="noopener noreferrer" className="hover:underline" style={{ color: GOLD }}>Zenodo</a> est publié sous DOI permanent. Le dépôt Hugging Face ne l’est pas encore.</>
-          : <>The <a href="https://doi.org/10.5281/zenodo.21794560" target="_blank" rel="noopener noreferrer" className="hover:underline" style={{ color: GOLD }}>Zenodo</a> deposit is published under a permanent DOI. The Hugging Face deposit is not yet.</>}
+          ? <>Déposé sur <a href="https://doi.org/10.5281/zenodo.21794559" target="_blank" rel="noopener noreferrer" className="hover:underline" style={{ color: GOLD }}>Zenodo</a> sous DOI permanent, et sur <a href="https://huggingface.co/datasets/askip776/african-health-evidence" target="_blank" rel="noopener noreferrer" className="hover:underline" style={{ color: GOLD }}>Hugging Face</a>.</>
+          : <>Deposited on <a href="https://doi.org/10.5281/zenodo.21794559" target="_blank" rel="noopener noreferrer" className="hover:underline" style={{ color: GOLD }}>Zenodo</a> under a permanent DOI, and on <a href="https://huggingface.co/datasets/askip776/african-health-evidence" target="_blank" rel="noopener noreferrer" className="hover:underline" style={{ color: GOLD }}>Hugging Face</a>.</>}
       </p>
     </>
   );
